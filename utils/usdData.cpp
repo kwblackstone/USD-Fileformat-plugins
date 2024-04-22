@@ -13,6 +13,7 @@ governing permissions and limitations under the License.
 #include "common.h"
 #include "debugCodes.h"
 #include <iomanip>
+#include <iostream>
 
 using namespace PXR_NS;
 
@@ -510,28 +511,44 @@ _uniquifyNode(UsdData& data, Node& node)
 
 // Ideally this function would also convert all prim names to tokens for efficiency
 void
-uniquifyNames(UsdData& data)
-{
-    // Cameras are (currently) always children of a node with a unique name, hence they don't need
-    // unique names, just valid prim names
+uniquifyNames(UsdData& data) {
+    std::cout << "Starting uniquifyNames..." << std::endl;
+    std::cout << "Initial Cameras Count: " << data.cameras.size() << std::endl;
+
     for (Camera& camera : data.cameras) {
+        auto originalName = camera.name;
         camera.name = _makeValidPrimName(camera.name, "Camera");
+        std::cout << "Camera original name: " << originalName << ", new name: " << camera.name << std::endl;
     }
+
+    std::cout << "Processing materials..." << std::endl;
     _uniquifySiblings(data.materials, "Material");
+
+    std::cout << "Processing skeletons..." << std::endl;
     _uniquifySiblings(data.skeletons, "Skeleton");
+
+    std::cout << "Processing animations..." << std::endl;
     _uniquifySiblings(data.animations, "Animation");
 
     if (!data.rootNodes.empty()) {
+        std::cout << "Processing nodes with rootNodes..." << std::endl;
         _uniquifySiblings(data.nodes, data.rootNodes, "Node");
+
         for (int idx : data.rootNodes) {
+            std::cout << "Processing rootNode at index: " << idx << std::endl;
             _uniquifyNode(data, data.nodes[idx]);
         }
     } else {
+        std::cout << "Processing nodes without rootNodes..." << std::endl;
         _uniquifySiblings(data.nodes, "Node");
-        for (Node& node : data.nodes) {
-            _uniquifyNode(data, node);
+
+        for (size_t i = 0; i < data.nodes.size(); ++i) {
+            std::cout << "Processing node at index: " << i << std::endl;
+            _uniquifyNode(data, data.nodes[i]);
         }
     }
+
+    std::cout << "uniquifyNames completed." << std::endl;
 }
 
 }

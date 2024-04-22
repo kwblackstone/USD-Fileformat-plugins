@@ -1,0 +1,178 @@
+# Workflow to build USD versions required to run the usd plugins
+# this assumes there is a Release created called USD Artifacts
+name: Create USD Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      usdVersion:
+        description: 'USD Version to build (e.g., 2308, 2403)'
+        required: true
+        default: '2308'
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest] # os: [ubuntu-latest, windows-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check if artifact exists in 'USD-${{ github.event.inputs.usdVersion }}-Artifacts' Release
+        id: check_artifact
+        shell: pwsh
+        run: |
+          $usdVersion="${{ github.event.inputs.usdVersion }}"
+          $usdFormattedVersion="$($usdVersion.Substring(0,2)).$($usdVersion.Substring(2))"
+          "USD_FORMATTED_VERSION=$usdFormattedVersion" | Out-File -FilePath $env:GITHUB_ENV -Append
+          $releaseName="USD-${{ github.event.inputs.usdVersion }}-Artifacts"
+          $ASSET_NAME="usd-${{ github.event.inputs.usdVersion }}-${{ matrix.os }}.zip"
+          $releaseExists = $false
+          $stderr = $null
+          $releaseView = gh release view $releaseName 2>&1 | Tee-Object -Variable stderr
+          if ($stderr -match "release not found") {
+            $releaseExists = $false
+            "exists=false" | Out-File -FilePath $env:GITHUB_ENV -Append
+            Write-Output "Release not found: $releaseName  -- Creating new one"
+            gh release create $releaseName --notes "USD shared libraries were built --usd-imaging --draco (win and mac) --use-cxx11-abi=0 (linux)"
+          } else {
+            $releaseExists = $true
+          }
+          Write-Output "Release View result: $releaseName, Exists: $releaseExists"
+          if ($releaseExists) {
+            $assets = gh release view $releaseName --repo ${{ github.repository }} --json assets -q '.assets[].name'
+            if ($assets -like "*$ASSET_NAME*") {
+              Write-Output "Asset $ASSET_NAME exists in the $releaseName Release."
+              "exists=true" | Out-File -FilePath $env:GITHUB_ENV -Append
+            } else {
+              Write-Output "Asset $ASSET_NAME does not exist in the $releaseName Release."
+              "exists=false" | Out-File -FilePath $env:GITHUB_ENV -Append
+            }
+          }
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Python
+        if: env.exists == 'false'
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+        id: setup-python
+  
+      - name: Install Ninja (Cross-platform)
+        if: env.exists == 'false'
+        run: |
+          python -m pip install ninja
+
+      - name: Install Additional Dependencies (macOS)
+        if: env.exists == 'false' && matrix.os == 'macos-latest'
+        run: |
+          sudo xcode-select -s /Applications/Xcode_14.1.app
+          brew install glew opencolorio imath
+          # pkg-config
+      # - name: Install openexr2
+      #  if: env.exists == 'false' && matrix.os == 'macos-latest'
+      #  run: |
+      #    curl -L https://github.com/AcademySoftwareFoundation/openexr/archive/refs/tags/v2.4.3.tar.gz -o openexr.tar.gz
+      #    tar -xzvf openexr.tar.gz
+      #    cd openexr-2.4.3
+      #    cmake . -DCMAKE_INSTALL_PREFIX=/usr/local -DBUILD_SHARED_LIBS=ON
+      #    make -j$(sysctl -n hw.logicalcpu)
+      #    sudo make install
+
+      - name: Install Additional Dependencies (Ubuntu)
+        if: env.exists == 'false' && matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential libgl1-mesa-dev libglew-dev libxi-dev libxrandr-dev
+
+      - name: Install Additional Dependencies (Windows)
+        if: env.exists == 'false' && matrix.os == 'windows-latest'
+        run: |
+          choco install cmake --installargs 'ADD_CMAKE_TO_PATH=System'
+
+      - name: Clone USD
+        if: env.exists == 'false'
+        run: git clone --branch v${{ env.USD_FORMATTED_VERSION }} --depth 1 https://github.com/PixarAnimationStudios/OpenUSD.git
+
+      - name: Install Python Dependencies
+        if: env.exists == 'false'
+        run: |
+          python -m pip install PySide6
+          python -m pip install pyopengl
+
+      - name: Build USD with Ninja
+        if: env.exists == 'false'
+        run: |
+          if [ "${{ matrix.os }}" == "ubuntu-latest" ]; then
+            abi_arg="--use-cxx11-abi 0"
+            draco_arg=""
+          else
+            abi_arg=""
+            draco_arg="--draco"
+          fi
+          if [ "${{ matrix.os }}" == "windows-latest" ]; then
+            # Perform the Windows-specific hack
+            sed -i 's/ -A x64//' OpenUSD/build_scripts/build_usd.py
+          fi
+          python OpenUSD/build_scripts/build_usd.py "${{ github.workspace }}/usd_build" \
+          --build-shared \
+          --tools \
+          --generator Ninja \
+          --python \
+          --debug-python \
+          --usd-imaging \
+          $draco_arg $abi_arg
+
+      - name: Remove Specific Folders Unix
+        if: env.exists == 'false' && matrix.os != 'windows-latest'
+        run: |
+          rm -rf ${{ github.workspace }}/usd_build/build
+          rm -rf ${{ github.workspace }}/usd_build/resources
+          rm -rf ${{ github.workspace }}/usd_build/share
+          rm -rf ${{ github.workspace }}/usd_build/src
+
+      - name: Remove Specific Folders Windows
+        if: env.exists == 'false' && matrix.os == 'windows-latest'
+        run: |
+          powershell -Command "& {
+            Remove-Item -Path ${{ github.workspace }}\usd_build\build -Recurse -Force
+            Remove-Item -Path ${{ github.workspace }}\usd_build\resources -Recurse -Force
+            Remove-Item -Path ${{ github.workspace }}\usd_build\share -Recurse -Force
+            Remove-Item -Path ${{ github.workspace }}\usd_build\src -Recurse -Force
+          }"
+
+      - name: Package Build Artifacts Unix
+        if: env.exists == 'false' && matrix.os != 'windows-latest'
+        run: |
+          cd ${{ github.workspace }}/usd_build
+          zip -r ../usd-${{ github.event.inputs.usdVersion }}-${{ matrix.os }}.zip *
+
+      - name: Package Build Artifacts Windows
+        if: env.exists == 'false' && matrix.os == 'windows-latest'
+        run: |
+          powershell -Command "& {
+            Set-Location ${{ github.workspace }}\usd_build
+            Compress-Archive -Path * -DestinationPath ..\usd-${{ github.event.inputs.usdVersion }}-${{ matrix.os }}.zip
+          }"
+
+      - name: Upload Artifact to USD-${{ github.event.inputs.usdVersion }}-Artifacts Release
+        if: env.exists == 'false'
+        shell: pwsh
+        run: |
+          $ARTIFACT_PATH="${{ github.workspace }}/usd-${{ github.event.inputs.usdVersion }}-${{ matrix.os }}.zip"
+          if (-Not (Test-Path $ARTIFACT_PATH)) {
+            Write-Output "$ARTIFACT_PATH does not exist."
+          }
+          else {
+            Write-Output "File $ARTIFACT_PATH exists."
+            Write-Output "Size of the artifact file:"
+            Get-Item $ARTIFACT_PATH | Select-Object Name, Length
+          }
+          Write-Output "Uploading $ARTIFACT_PATH to USD-${{github.event.inputs.usdVersion}}-Artifacts release..."
+          gh release upload USD-${{ github.event.inputs.usdVersion }}-Artifacts $ARTIFACT_PATH --repo ${{ github.repository }} --clobber
+          Write-Output "Upload successful."
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

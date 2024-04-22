@@ -1,0 +1,318 @@
+# Workflow to build the USD fileformat plugins using a release of USD
+# and run their unit tests
+name: Build and Test
+
+on:
+  workflow_dispatch:
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ macos-latest]
+        # os: [ macos-latest, ubuntu-latest, windows-latest]
+        usd_version: ['2308']
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10.11'
+        id: setup-python
+
+      - name: Install dependencies on Linux
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y unzip python3-dev python3-venv python3-pip ninja-build
+          sudo apt-get remove --purge -y cmake
+          wget https://cmake.org/files/v3.24/cmake-3.24.4-linux-x86_64.sh
+          chmod +x cmake-3.24.4-linux-x86_64.sh
+          sudo ./cmake-3.24.4-linux-x86_64.sh --prefix=/usr/local --skip-license
+          cmake --version
+
+      - name: Install dependencies on Windows
+        if: runner.os == 'Windows'
+        run: choco install cmake unzip
+
+      - name: Install dependencies on macOS
+        if: runner.os == 'macOS'
+        run: |
+          sudo xcode-select -s /Applications/Xcode_14.1.app
+          brew install autoconf automake libtool cmake ninja || true
+
+      - name: Download release asset
+        run: gh release download USD-${{ matrix.usd_version }}-Artifacts -p "usd-${{ matrix.usd_version }}-${{ matrix.os }}.zip" --repo ${{ github.repository }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Unzip artifact
+        run: |
+          unzip -q usd-${{ matrix.usd_version }}-${{ matrix.os }}.zip -d usd_location
+
+      - name: Download FBX SDK (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $uri = "https://www.autodesk.com/content/dam/autodesk/www/adn/fbx/2020-2-1/fbx202021_fbxsdk_vs2019_win.exe"
+          $outFile = "fbxsdk.exe"
+          $destinationFolder = "${{ github.workspace }}\FBXSDK"
+
+          # Ensure the destination folder exists
+          if (-not (Test-Path $destinationFolder)) {
+            Write-Output "Creating destination folder at $destinationFolder..."
+            New-Item -ItemType Directory -Path $destinationFolder | Out-Null
+            Write-Output "Destination folder created."
+          } else {
+            Write-Output "Destination folder already exists."
+          }
+
+          # Download the FBX SDK installer
+          Write-Output "Downloading FBX SDK from $uri..."
+          Invoke-WebRequest -Uri $uri -OutFile $outFile
+          if (-not (Test-Path $outFile)) {
+            Write-Error "Failed to download FBX SDK installer."
+            exit 1
+          }
+          Write-Output "FBX SDK downloaded successfully."
+
+          # Install the FBX SDK
+          Write-Output "Installing FBX SDK to $destinationFolder..."
+          $process = Start-Process -FilePath .\fbxsdk.exe -ArgumentList "/S /D=$destinationFolder" -PassThru -Wait
+          if ($process.ExitCode -ne 0) {
+            Write-Error "FBX SDK installation failed with exit code $($process.ExitCode)."
+            exit 1
+          }
+          Write-Output "FBX SDK installed successfully."
+
+          # Optionally verify installation
+          Write-Output "Verifying installation..."
+          if (-not (Test-Path $destinationFolder)) {
+            Write-Error "Installation directory does not exist."
+            exit 1
+          }
+
+          # Verifying installation and printing the full paths of all files
+          Write-Output "Collecting installed files..."
+          $files = Get-ChildItem -Path $destinationFolder -Recurse -File
+
+          if ($files.Count -eq 0) {
+              Write-Error "Installation directory is empty. Installation may have failed."
+              exit 1
+          } else {
+              Write-Output "Verification successful. Installed $($files.Count) files."
+          }
+
+          # Output the installation directory to GITHUB_PATH
+          "$destinationFolder" | Out-File -FilePath $env:GITHUB_PATH -Append
+
+      - name: Download and Install FBX SDK (macOS)
+        if: runner.os == 'macOS'
+        shell: pwsh
+        run: |
+          $uri="https://www.autodesk.com/content/dam/autodesk/www/adn/fbx/2020-2-1/fbx202021_fbxsdk_clang_mac.pkg.tgz"
+          $outFile="fbxsdk_mac.pkg.tgz"
+          $destinationFolder="${{ github.workspace }}/FBXSDK"
+
+          # Ensure the destination folder exists
+          if (-not (Test-Path $destinationFolder)) {
+            Write-Output "Creating destination folder at $destinationFolder..."
+            New-Item -ItemType Directory -Path $destinationFolder | Out-Null
+            Write-Output "Destination folder created."
+          } else {
+            Write-Output "Destination folder already exists."
+          }
+
+          # Download the FBX SDK installer
+          Write-Output "Downloading FBX SDK from $uri..."
+          Invoke-WebRequest -Uri $uri -OutFile $outFile
+          if (-not (Test-Path $outFile)) {
+            Write-Error "Failed to download FBX SDK installer."
+            exit 1
+          }
+          Write-Output "FBX SDK downloaded successfully."
+
+          echo "Extracting package..."
+          tar -xzf $outFile
+
+          echo "Installing FBX SDK..."
+          sudo installer -pkg ./*.pkg -target /
+
+      - name: Download and Install FBX SDK (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          uri="https://www.autodesk.com/content/dam/autodesk/www/adn/fbx/2020-2-1/fbx202021_fbxsdk_linux.tar.gz"
+          outFile="fbxsdk_linux.tar.gz"
+          destinationFolder="${{ github.workspace }}/FBXSDK"
+
+          echo "Downloading FBX SDK for Linux..."
+          curl -L $uri -o $outFile
+
+          echo "Extracting FBX SDK..."
+          tar -xzf $outFile -C $destinationFolder
+
+          echo "FBX SDK extracted successfully."
+
+      - name: Set Environment Variables (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          "${{ steps.setup-python.outputs.python-path }}" | Out-File -FilePath $env:GITHUB_PATH -Append
+          "${{ github.workspace }}/usd_location/bin" | Out-File -FilePath $env:GITHUB_PATH -Append
+          "${{ github.workspace }}/usd_location/lib" | Out-File -FilePath $env:GITHUB_PATH -Append
+          "${{ github.workspace }}/usd_location/lib64" | Out-File -FilePath $env:GITHUB_PATH -Append
+          "${{ github.workspace }}/usd_location/plugin/usd" | Out-File -FilePath $env:GITHUB_PATH -Append
+          "${{ github.workspace }}/bin/bin" | Out-File -FilePath $env:GITHUB_PATH -Append
+          "${{ github.workspace }}/bin/plugin/usd" | Out-File -FilePath $env:GITHUB_PATH -Append
+          "PXR_PLUGINPATH_NAME=${{ github.workspace }}\bin\plugin\usd;${{ github.workspace }}\usd_location\plugin\usd" | Out-File -FilePath $env:GITHUB_ENV -Append
+          "PYTHONPATH=${{ github.workspace }}\usd_location\lib\python" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - name: Set Environment Variables (Mac/Linux)
+        if: runner.os != 'Windows'
+        shell: pwsh
+        run: |
+          $ldLibraryPath = "${{ github.workspace }}/usd_location/bin:" +
+                           "${{ github.workspace }}/usd_location/lib:" +
+                           "${{ github.workspace }}/usd_location/lib64:" +
+                           "${{ github.workspace }}/usd_location/plugin/usd:" +
+                           "${{ github.workspace }}/bin/bin:" +
+                           "${{ github.workspace }}/bin/plugin/usd"
+          "LD_LIBRARY_PATH=$ldLibraryPath" | Out-File -FilePath $env:GITHUB_ENV -Append
+          "PXR_PLUGINPATH_NAME=${{ github.workspace }}/bin/plugin/usd:${{ github.workspace }}/usd_location/plugin/usd" | Out-File -FilePath $env:GITHUB_ENV -Append
+          "PYTHONPATH=${{ github.workspace }}/usd_location/lib/python" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - name: Configure CMake (Windows)
+        if: runner.os == 'Windows'
+        run: >
+          cmake -S . -B build
+          -DCMAKE_INSTALL_PREFIX=bin
+          -DCMAKE_BUILD_TYPE=Release
+          -Dpxr_ROOT=${{ github.workspace }}/usd_location
+          -DFBXSDK_ROOT=${{ github.workspace }}/FBXSDK
+          -DUSD_FILEFORMATS_BUILD_TESTS=ON
+          -DOpenImageIO_DIR=${{ github.workspace }}/usd_location/lib/cmake/OpenImageIO
+          -DOpenImageIO_INCLUDE_DIR=${{ github.workspace }}/usd_location/include
+          -DOpenImageIO_INCLUDES=${{ github.workspace }}/usd_location/include
+          -DOpenImageIO_LIB_DIR=${{ github.workspace }}/usd_location/lib
+          -DPython3_EXECUTABLE=""
+          -DPython3_LIBRARY=""
+          -DPython3_INCLUDE_DIR=""
+          -DPython3_VERSION="3.10.11"
+          -DCMAKE_VERBOSE_MAKEFILE:BOOL=ON
+
+      - name: Create symbolic links for libraries (Linux)
+        if: runner.os == 'Linux'
+        shell: pwsh
+        run: |
+          $paths = @("${{ github.workspace }}/usd_location/lib64/", "${{ github.workspace }}/usd_location/lib/")
+          foreach ($path in $paths) {
+            Get-ChildItem -Path $path -Filter "*.so.*" | ForEach-Object {
+              $base = $_.Name -replace '\.so\..*$', '.so'
+              $target = Join-Path -Path $_.Directory.FullName -ChildPath $base
+              if (-not (Test-Path -Path $target)) {
+                  New-Item -ItemType SymbolicLink -Path $target -Target $_.FullName
+                  Write-Host "Created symbolic link: $target -> $($_.FullName)"
+              }
+            }
+          }
+          sudo ln -sf /usr/lib/x86_64-linux-gnu/libz.so /usr/lib64/libz.so
+          sudo ln -sf /usr/lib/x86_64-linux-gnu/libm.so /usr/lib64/libm.so
+
+      - name: Configure CMake (Linux)
+        if: runner.os == 'Linux'
+        run: >
+          cmake -S . -B build
+          -G Ninja
+          -DCMAKE_INSTALL_PREFIX=bin
+          -DCMAKE_BUILD_TYPE=Release
+          -Dpxr_ROOT=${{ github.workspace }}/usd_location
+          -DFBXSDK_ROOT=${{ github.workspace }}/FBXSDK
+          -DUSD_FILEFORMATS_BUILD_TESTS=ON
+          -DOpenImageIO_DIR=${{ github.workspace }}/usd_location/lib64/cmake/OpenImageIO
+          -DOpenImageIO_INCLUDE_DIR=${{ github.workspace }}/usd_location/include
+          -DOpenImageIO_INCLUDES=${{ github.workspace }}/usd_location/include
+          -DOpenImageIO_LIB_DIR=${{ github.workspace }}/usd_location/lib64
+          -DPython3_EXECUTABLE=""
+          -DPython3_LIBRARY=""
+          -DPython3_INCLUDE_DIR=""
+          -DPython3_VERSION="3.10.11"
+          -DCMAKE_VERBOSE_MAKEFILE:BOOL=ON
+          -DUSD_FILEFORMATS_ENABLE_CXX11_ABI=ON
+          -DUSD_FILEFORMATS_FETCH_DRACO=ON
+          -DUSD-FILEFORMATS_FORCE_FETCHCONTENT=OFF
+
+      - name: Configure CMake (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          cmake -S . -B build \
+          -G Ninja \
+          -DCMAKE_BUILD_TYPE=Release \
+          -DCMAKE_INSTALL_PREFIX=bin \
+          -Dpxr_ROOT=${{ github.workspace }}/usd_location \
+          -DFBXSDK_ROOT=${{ github.workspace }}/FBXSDK \
+          -DUSD_FILEFORMATS_ENABLE_FBX=OFF \
+          -DUSD_FILEFORMATS_ENABLE_STL=OFF \
+          -DUSD_FILEFORMATS_ENABLE_PLY=OFF \
+          -DUSD_FILEFORMATS_ENABLE_OBJ=OFF \
+          -DUSD_FILEFORMATS_BUILD_TESTS=ON \
+          -DPython3_EXECUTABLE="" \
+          -DPython3_LIBRARY="" \
+          -DPython3_INCLUDE_DIR="" \
+          -DPython3_VERSION="3.10.11" \
+          -DCMAKE_VERBOSE_MAKEFILE:BOOL=ON \
+          -DUSD_FILEFORMATS_ENABLE_CXX11_ABI=OFF \
+          -DCMAKE_CXX_FLAGS="-fsanitize=address" \
+          -DCMAKE_LINKER_FLAGS="-fsanitize=address"
+
+      - name: Build
+        run: cmake --build build --config Release
+
+      - name: Install
+        run: cmake --install build --config Release
+
+      - name: Install test requirements
+        run: pip install -r scripts/requirements.txt
+
+      - name: Run tests and inspect dependencies
+        shell: bash
+        run: |
+          cd ${{ github.workspace }}/build/gltf/tests
+
+          echo "Inspecting dynamic library dependencies of the test binary..."
+          otool -L ./gltfSanityTests
+
+          echo "Inspecting dynamic library dependencies of libfileformatUtils.dylib..."
+          otool -L ${{ github.workspace }}/bin/lib/libfileformatUtils.dylib
+
+          # Check for and display the RPATH of the test binary
+          echo "Inspecting RPATH of the test binary..."
+          otool -l ./gltfSanityTests | grep -A2 LC_RPATH
+
+          # Check for and display the RPATH of the test binary
+          echo "Inspecting RPATH of the util dylib..."
+          otool -l ${{ github.workspace }}/bin/lib/libfileformatUtils.dylib | grep -A2 LC_RPATH
+
+          # Enable core dumps in case the test crashes
+          echo "Enabling core dumps..."
+          ulimit -c unlimited
+
+          echo "Running the test..."
+          ./gltfSanityTests --gtest_filter=GlTFSanityTests.LoadCube --gtest_output=xml:test_results.xml
+
+          if [ -f test_results.xml ]; then
+            echo "Test results found. Displaying contents:"
+            cat test_results.xml
+          else
+            echo "test_results.xml does not exist."
+
+          # In case of a crash, check for a core dump
+          echo "Checking for core dumps..."
+          if ls /cores/core.* 1> /dev/null 2>&1; then
+            echo "Core dump found. Listing core dumps..."
+            ls -lh /cores/
+            # Consider adding steps to package and upload core dumps as artifacts
+          else
+            echo "No core dumps found."
+      

@@ -28,6 +28,7 @@ governing permissions and limitations under the License.
 #include <pxr/usd/usdVol/tokens.h>
 
 #include <fstream>
+#include <iostream>
 
 using namespace PXR_NS;
 
@@ -1024,6 +1025,7 @@ writeLayer(const WriteLayerOptions& options,
 
     // Make sure all names in the data are unique and suitable as prim names
     // Note, this potentially modifies the usdData
+    std::cout << "CALL UNIQUE NAMES" << std::endl;
     uniquifyNames(data);
 
     GUARD(_writeLayerSdfData(options,
