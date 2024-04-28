@@ -27,4 +27,4 @@ jobs:
             gh workflow run build.yml --ref main -f usd_version=${version}
           done
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Ensure gh is authenticated
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
