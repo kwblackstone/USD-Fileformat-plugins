@@ -319,6 +319,6 @@ jobs:
         with:
           NAME: "usd-build-${{ matrix.usd_version }}"
           LABEL: "USD ${{ matrix.usd_version }}"
-          STATUS: ${{ env[matrix.os + '-' + matrix.usd_version + '-result'] == 'success' && 'Passed' || 'Failed' }}
-          COLOR: ${{ env[matrix.os + '-' + matrix.usd_version + '-result'] == 'success' && 'green' || 'red' }}
+          STATUS: "${{ env[matrix.os + '-' + matrix.usd_version + '-result'] == 'success' && 'Passed' || 'Failed' }}"
+          COLOR: "${{ env[matrix.os + '-' + matrix.usd_version + '-result'] == 'success' && 'green' || 'red' }}"
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
