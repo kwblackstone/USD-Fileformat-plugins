@@ -1,0 +1,70 @@
+name: CI Workflow
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  process:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Read USD Versions and Process
+        run: |
+          VERSIONS_JSON=$(cat usd_versions.json)
+          USD_VERSIONS=$(echo "$VERSIONS_JSON" | jq -r '.usd_versions | join(" ")')
+          echo "" > workflow_ids.txt
+          for version in $USD_VERSIONS; do
+            echo "Processing version ${version}"
+            workflow_id = gh workflow run build.yml --ref main -f usd_version=${version}
+            echo "${workflow_id}:${version}" >> workflow_ids.txt
+          done
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  monitor:
+    needs: process
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download Workflow IDs
+        uses: actions/download-artifact@v4
+        with:
+          name: workflow-ids
+          path: .
+
+      - name: Wait for Workflows to Complete
+        run: |
+          success=true
+          while IFS=':' read -r run_id version; do
+            status=$(gh run view $run_id --json conclusion,status -q '.status')
+            if [[ "$status" == "failure" || "$status" == "cancelled" ]]; then
+              echo "Workflow $run_id for version $version failed or was cancelled."
+              success=false
+            elif [[ "$status" == "completed" ]]; then
+              echo "Workflow $run_id for version $version completed successfully."
+            else
+              echo "Workflow $run_id for version $version is still in progress..."
+              sleep 15
+            fi
+          done < workflow_ids.txt
+          echo "overall_result=$success" >> $GITHUB_ENV
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  update_badge:
+    needs: monitor
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Set up BYOB
+        uses: RubbaBoy/BYOB@v1.3.0
+        with:
+          NAME: "usd-build-${{ github.event.inputs.usd_version }}"
+          LABEL: "USD ${{ github.event.inputs.usd_version }}"
+          STATUS: ${{ env.overall_result == 'success' && 'Passed' || 'Failed' }}
+          COLOR: ${{ env.overall_result == 'success' && 'green' || 'red' }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

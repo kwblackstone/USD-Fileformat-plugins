@@ -5,13 +5,14 @@ name: Create USD Release
 on:
   workflow_dispatch:
     inputs:
-      usdVersion:
+      usd_version:
         description: 'USD Version to build (e.g., 2308, 2403)'
         required: true
         default: '2308'
 
 jobs:
   build:
+    name: Create USD Release ${{ github.event.inputs.usd_version }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -20,15 +21,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: ilammy/msvc-dev-cmd@v1
-      - name: Check if artifact exists in 'USD-${{ github.event.inputs.usdVersion }}-Artifacts' Release
+      - name: Check if artifact exists in 'USD-${{ github.event.inputs.usd_version }}-Artifacts' Release
         id: check_artifact
         shell: pwsh
         run: |
-          $usdVersion="${{ github.event.inputs.usdVersion }}"
-          $usdFormattedVersion="$($usdVersion.Substring(0,2)).$($usdVersion.Substring(2))"
+          $usd_version="${{ github.event.inputs.usd_version }}"
+          $usdFormattedVersion="$($usd_version.Substring(0,2)).$($usd_version.Substring(2))"
           "USD_FORMATTED_VERSION=$usdFormattedVersion" | Out-File -FilePath $env:GITHUB_ENV -Append
-          $releaseName="USD-${{ github.event.inputs.usdVersion }}-Artifacts"
-          $ASSET_NAME="usd-${{ github.event.inputs.usdVersion }}-${{ matrix.os }}.zip"
+          $releaseName="USD-${{ github.event.inputs.usd_version }}-Artifacts"
+          $ASSET_NAME="usd-${{ github.event.inputs.usd_version }}-${{ matrix.os }}.zip"
           $releaseExists = $false
           $stderr = $null
           $releaseView = gh release view $releaseName 2>&1 | Tee-Object -Variable stderr
@@ -138,21 +139,21 @@ jobs:
         if: env.exists == 'false' && matrix.os != 'windows-2022'
         run: |
           cd ${{ github.workspace }}/usd_build
-          zip -r ../usd-${{ github.event.inputs.usdVersion }}-${{ matrix.os }}.zip *
+          zip -r ../usd-${{ github.event.inputs.usd_version }}-${{ matrix.os }}.zip *
 
       - name: Package Build Artifacts Windows
         if: env.exists == 'false' && matrix.os == 'windows-2022'
         run: |
           powershell -Command "& {
             Set-Location ${{ github.workspace }}\usd_build
-            Compress-Archive -Path * -DestinationPath ..\usd-${{ github.event.inputs.usdVersion }}-${{ matrix.os }}.zip
+            Compress-Archive -Path * -DestinationPath ..\usd-${{ github.event.inputs.usd_version }}-${{ matrix.os }}.zip
           }"
 
-      - name: Upload Artifact to USD-${{ github.event.inputs.usdVersion }}-Artifacts Release
+      - name: Upload Artifact to USD-${{ github.event.inputs.usd_version }}-Artifacts Release
         if: env.exists == 'false'
         shell: pwsh
         run: |
-          $ARTIFACT_PATH="${{ github.workspace }}/usd-${{ github.event.inputs.usdVersion }}-${{ matrix.os }}.zip"
+          $ARTIFACT_PATH="${{ github.workspace }}/usd-${{ github.event.inputs.usd_version }}-${{ matrix.os }}.zip"
           if (-Not (Test-Path $ARTIFACT_PATH)) {
             Write-Output "$ARTIFACT_PATH does not exist."
           }
@@ -161,8 +162,8 @@ jobs:
             Write-Output "Size of the artifact file:"
             Get-Item $ARTIFACT_PATH | Select-Object Name, Length
           }
-          Write-Output "Uploading $ARTIFACT_PATH to USD-${{github.event.inputs.usdVersion}}-Artifacts release..."
-          gh release upload USD-${{ github.event.inputs.usdVersion }}-Artifacts $ARTIFACT_PATH --repo ${{ github.repository }} --clobber
+          Write-Output "Uploading $ARTIFACT_PATH to USD-${{github.event.inputs.usd_version}}-Artifacts release..."
+          gh release upload USD-${{ github.event.inputs.usd_version }}-Artifacts $ARTIFACT_PATH --repo ${{ github.repository }} --clobber
           Write-Output "Upload successful."
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
