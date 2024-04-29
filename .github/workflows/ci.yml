@@ -17,11 +17,10 @@ jobs:
         run: |
           VERSIONS_JSON=$(cat usd_versions.json)
           USD_VERSIONS=$(echo "$VERSIONS_JSON" | jq -r '.usd_versions | join(" ")')
-          echo "" > workflow_ids.txt
           for version in $USD_VERSIONS; do
             echo "Processing version ${version}"
-            workflow_id = gh workflow run build.yml --ref main -f usd_version=${version}
-            echo "${workflow_id}:${version}" >> workflow_ids.txt
+            gh workflow run build.yml --ref main -f usd_version=${version}
+            echo "${version}" >> workflow_ids.txt
           done
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -48,7 +47,7 @@ jobs:
               echo "Workflow $run_id for version $version completed successfully."
             else
               echo "Workflow $run_id for version $version is still in progress..."
-              sleep 15
+              sleep 10
             fi
           done < workflow_ids.txt
           echo "overall_result=$success" >> $GITHUB_ENV
