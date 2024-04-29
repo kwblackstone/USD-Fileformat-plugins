@@ -304,8 +304,18 @@ jobs:
           ctest -VV -C Release
           result=$?
           echo "Test exit status: $result"
-          echo "${{ matrix.os }}-${{ matrix.usd_version }}-result=$( [ $result -eq 0 ] && echo 'success' || echo 'failure' )" >> $GITHUB_ENV
+          suffix="${{ matrix.os }}-${{ matrix.usd_version }}"
+          if [[ "$result" -eq 0 ]]; then
+            echo "${suffix},Passed,green" >> results.csv
+          else
+            echo "${suffix},Failed,red" >> results.csv
+          fi
 
+      - uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: results.csv
+      
   update_badge:
     needs: build
     runs-on: ubuntu-latest
@@ -314,11 +324,16 @@ jobs:
       fail-fast: false
       matrix: ${{fromJson(needs.prepare-matrix.outputs.matrix)}}
     steps:
-      - name: Set up BYOB
-        uses: RubbaBoy/BYOB@v1.3.0
+      - uses: actions/download-artifact@v2
         with:
-          NAME: "usd-build-${{ matrix.usd_version }}"
-          LABEL: "USD ${{ matrix.usd_version }}"
-          STATUS: "${{ env[matrix.os + '-' + matrix.usd_version + '-result'] == 'success' && 'Passed' || 'Failed' }}"
-          COLOR: "${{ env[matrix.os + '-' + matrix.usd_version + '-result'] == 'success' && 'green' || 'red' }}"
+          name: test-results
+
+      - name: Setup Badge
+        run: |
+          suffix="${{ matrix.os }}-${{ matrix.usd_version }}"
+          # Read the specific line that contains the status and color for the current matrix settings
+          IFS=',' read -r _ status color < <(grep "^${suffix}," results.csv)
+          echo "Status: $status, Color: $color"
+          echo "Set up BYOB with Name: usd-build-${{ matrix.usd_version }}, Label: USD ${{ matrix.usd_version }}, Status: $status, Color: $color"
+        env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
