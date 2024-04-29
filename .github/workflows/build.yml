@@ -10,6 +10,7 @@ on:
         description: 'USD Version to build and test against'
 jobs:
   build:
+    name: Build and Test with USD ${{ github.event.inputs.usd_version }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -292,8 +293,6 @@ jobs:
           else
             echo "failure" > result.txt
           fi
-          # Add debugging to check if file exists and list directory contents
-          ls -la
 
       - name: Upload test result as artifact
         uses: actions/upload-artifact@v4
