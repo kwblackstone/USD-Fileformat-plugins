@@ -304,47 +304,21 @@ jobs:
           ctest -VV -C Release
           result=$?
           echo "Test exit status: $result"
-          if [ $result -eq 0 ]; then
-            echo "success" > result.txt
-          else
-            echo "failure" > result.txt
-          fi
-
-      - name: Upload test result as artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: result-${{ matrix.os }}
-          path: build/result.txt
+          echo "${{ matrix.os }}-${{ matrix.usd_version }}-result=$( [ $result -eq 0 ] && echo 'success' || echo 'failure' )" >> $GITHUB_ENV
 
   update_badge:
     needs: build
     runs-on: ubuntu-latest
     if: always()
+    strategy:
+      fail-fast: false
+      matrix: ${{fromJson(needs.prepare-matrix.outputs.matrix)}}
     steps:
-      - name: Download all artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: results
-
-      - name: Determine Final Status
-        run: |
-          overall_status="success"
-          for os_dir in results/*; do
-            if [ -d "$os_dir" ]; then
-              result=$(cat "$os_dir/result.txt")
-              if [[ "$result" == "failure" ]]; then
-                overall_status="failure"
-                break
-              fi
-            fi
-          done
-          echo "overall_status=$overall_status" >> $GITHUB_ENV
-
       - name: Set up BYOB
         uses: RubbaBoy/BYOB@v1.3.0
         with:
-          NAME: "usd-build-${{ github.event.inputs.usd_version }}"
-          LABEL: "USD ${{ github.event.inputs.usd_version }}"
-          STATUS: ${{ env.overall_status == 'success' && 'Passed' || 'Failed' }}
-          COLOR: ${{ env.overall_status == 'success' && 'green' || 'red' }}
+          NAME: "usd-build-${{ matrix.usd_version }}"
+          LABEL: "USD ${{ matrix.usd_version }}"
+          STATUS: ${{ env[matrix.os + '-' + matrix.usd_version + '-result'] == 'success' && 'Passed' || 'Failed' }}
+          COLOR: ${{ env[matrix.os + '-' + matrix.usd_version + '-result'] == 'success' && 'green' || 'red' }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
