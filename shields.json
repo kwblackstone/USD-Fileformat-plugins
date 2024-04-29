@@ -1,1 +1,1 @@
-{"usd-build-":{"label":"USD Build ","status":"Passed","color":"brightgreen"},"usd-build-2308":{"label":"USD 2308","status":"Passed","color":"green"},"usd-build-2405":{"label":"USD 2405","status":"Passed","color":"green"}}
+{"usd-build-":{"label":"USD ","status":"Failed","color":"red"},"usd-build-2308":{"label":"USD 2308","status":"Passed","color":"green"},"usd-build-2405":{"label":"USD 2405","status":"Passed","color":"green"}}
