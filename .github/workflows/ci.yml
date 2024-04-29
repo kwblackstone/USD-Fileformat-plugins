@@ -26,8 +26,9 @@ jobs:
           version_file=test/full_versions.json
         fi
         usd_versions=$(echo $(cat $version_file) | sed 's/ /, /g')
+        echo "$usd_versions"
         matrix="{\"os\": [\"windows-2022\", \"ubuntu-22.04\", \"macos-13\"], \"usd_version\": [${usd_versions}]}"
-        echo "matrix" >> $GITHUB_OUTPUT
+        echo "$matrix" >> $GITHUB_OUTPUT
 
     - name: Upload matrix.json
       uses: actions/upload-artifact@v4
