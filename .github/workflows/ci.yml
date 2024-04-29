@@ -17,18 +17,14 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
-    - name: Determine Version File
-      id: version-file
+    - name: Setup Matrix
+      id: set-matrix
       run: |
         if [ "${{ github.event_name }}" == "schedule" ]; then
-          version_file=test/pr_versions.txt
+          echo "matrix=$(jq -c . < ./pr_versions.json)" >> $GITHUB_OUTPUT
         else
-          version_file=test/full_versions.txt
+          echo "matrix=$(jq -c . < ./full_versions.json)" >> $GITHUB_OUTPUT
         fi
-        usd_versions=$(echo $(cat $version_file) | sed 's/ /, /g')
-        echo "$usd_versions"
-        matrix="{\"os\": [\"windows-2022\", \"ubuntu-22.04\", \"macos-13\"], \"usd_version\": [${usd_versions}]}"
-        echo "$matrix" >> $GITHUB_OUTPUT
 
     - name: Upload matrix.json
       uses: actions/upload-artifact@v4
@@ -38,11 +34,10 @@ jobs:
 
   build:
     needs: prepare-matrix
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
-      matrix:
-        matrix: ${{ fromJson(needs.configure.outputs.matrix) }}
+      matrix: ${{fromJson(needs.prepare-matrix.outputs.matrix)}}
     steps:
       - uses: actions/checkout@v4
       - uses: ilammy/msvc-dev-cmd@v1
