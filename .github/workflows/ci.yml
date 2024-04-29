@@ -21,9 +21,9 @@ jobs:
       id: set-matrix
       run: |
         if [ "${{ github.event_name }}" == "schedule" ]; then
-          echo "matrix=$(jq -c . < ./pr_versions.json)" >> $GITHUB_OUTPUT
+          echo "matrix=$(jq -c . < ./test/full_versions.json)" >> $GITHUB_OUTPUT
         else
-          echo "matrix=$(jq -c . < ./full_versions.json)" >> $GITHUB_OUTPUT
+          echo "matrix=$(jq -c . < .test/pr_versions.json)" >> $GITHUB_OUTPUT
         fi
 
   build:
