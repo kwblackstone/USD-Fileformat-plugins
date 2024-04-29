@@ -21,9 +21,9 @@ jobs:
       id: version-file
       run: |
         if [ "${{ github.event_name }}" == "schedule" ]; then
-          version_file=test/pr_versions.json
+          version_file=test/pr_versions.txt
         else
-          version_file=test/full_versions.json
+          version_file=test/full_versions.txt
         fi
         usd_versions=$(echo $(cat $version_file) | sed 's/ /, /g')
         echo "$usd_versions"
