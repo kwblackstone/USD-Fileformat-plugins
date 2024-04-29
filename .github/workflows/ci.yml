@@ -26,12 +26,6 @@ jobs:
           echo "matrix=$(jq -c . < ./full_versions.json)" >> $GITHUB_OUTPUT
         fi
 
-    - name: Upload matrix.json
-      uses: actions/upload-artifact@v4
-      with:
-        name: matrix
-        path: matrix.json
-
   build:
     needs: prepare-matrix
     runs-on: ${{ matrix.os }}
