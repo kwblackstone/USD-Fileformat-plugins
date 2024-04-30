@@ -198,15 +198,15 @@ jobs:
           echo "Test exit status: $result"
           suffix="${{ matrix.os }}-${{ matrix.usd_version }}"
           if [[ "$result" -eq 0 ]]; then
-            echo "${suffix},Passed,green" >> results.csv
+            echo "${suffix},Passed,green" >> ${{ matrix.os }}-${{ matrix.usd_version }}-results.csv
           else
-            echo "${suffix},Failed,red" >> results.csv
+            echo "${suffix},Failed,red" >> ${{ matrix.os }}-${{ matrix.usd_version }}-results.csv
           fi
 
       - uses: actions/upload-artifact@v4
         with:
-          name: test-results
-          path: build/results.csv
+          name: test-${{ matrix.os }}-${{ matrix.usd_version }}-results
+          path: build/${{ matrix.os }}-${{ matrix.usd_version }}-results.csv
       
   update_badge:
     needs: build
@@ -218,13 +218,13 @@ jobs:
     steps:
       - uses: actions/download-artifact@v2
         with:
-          name: test-results
+          name: test-${{ matrix.os }}-${{ matrix.usd_version }}-results
 
       - name: Setup Badge
         run: |
           suffix="${{ matrix.os }}-${{ matrix.usd_version }}"
           # Read the specific line that contains the status and color for the current matrix settings
-          IFS=',' read -r _ status color < <(grep "^${suffix}," results.csv)
+          IFS=',' read -r _ status color < <(grep "^${suffix}," ${{ matrix.os }}-${{ matrix.usd_version }}-results.csv)
           echo "Status: $status, Color: $color"
           echo "Set up BYOB with Name: usd-build-${{ matrix.usd_version }}, Label: USD ${{ matrix.usd_version }}, Status: $status, Color: $color"
         env:
