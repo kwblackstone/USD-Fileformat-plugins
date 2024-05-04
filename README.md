@@ -1,3 +1,10 @@
+[![](https://byob.yarr.is/kwblackstone/USD-Fileformat-plugins/windows-2022-2405)](https://github.com/kwblackstone/USD-Fileformat-plugins/actions/workflows/ci.yml) [![](https://byob.yarr.is/kwblackstone/USD-Fileformat-plugins/windows-2022-2311)](https://github.com/kwblackstone/USD-Fileformat-plugins/actions/workflows/ci.yml) [![](https://byob.yarr.is/kwblackstone/USD-Fileformat-plugins/windows-2022-2308)](https://github.com/kwblackstone/USD-Fileformat-plugins/actions/workflows/ci.yml)
+
+[![](https://byob.yarr.is/kwblackstone/USD-Fileformat-plugins/macOS-14-2405)](https://github.com/kwblackstone/USD-Fileformat-plugins/actions/workflows/ci.yml) [![](https://byob.yarr.is/kwblackstone/USD-Fileformat-plugins/macOS-13-2405)](https://github.com/kwblackstone/USD-Fileformat-plugins/actions/workflows/ci.yml) [![](https://byob.yarr.is/kwblackstone/USD-Fileformat-plugins/macOS-13-2311)](https://github.com/kwblackstone/USD-Fileformat-plugins/actions/workflows/ci.yml) [![](https://byob.yarr.is/kwblackstone/USD-Fileformat-plugins/macOS-13-2308)](https://github.com/kwblackstone/USD-Fileformat-plugins/actions/workflows/ci.yml)
+
+[![](https://byob.yarr.is/kwblackstone/USD-Fileformat-plugins/ubuntu-22.04-2405)](https://github.com/kwblackstone/USD-Fileformat-plugins/actions/workflows/ci.yml) [![](https://byob.yarr.is/kwblackstone/USD-Fileformat-plugins/ubuntu-22.04-2311)](https://github.com/kwblackstone/USD-Fileformat-plugins/actions/workflows/ci.yml) [![](https://byob.yarr.is/kwblackstone/USD-Fileformat-plugins/ubuntu-22.04-2308)](https://github.com/kwblackstone/USD-Fileformat-plugins/actions/workflows/ci.yml)
+
+
 # USD File Format Plugins
 These [USD file-format-plugins](https://graphics.pixar.com/usd/release/plugins.html) allow the interchange between [Pixar's USD](https://graphics.pixar.com/usd/release/index.html) (`.usd`, `.usda`, `.usdz`) and the following file formats, with cross platform support (`windows`, `macos`, and `linux`):
 
@@ -195,6 +202,26 @@ Or Copy plugins:
   ```bash
   python ./USD-Fileformat-plugins/test/test.py --generate_baseline
   ```
+
+## CI Workflow
+Two primary workflows have been implemented using GitHub Actions.
+
+1. CI Build Workflow:
+- Triggers on every push or pull request to main.
+- This workflow builds the plugins against the oldest (23.08) and newest (24.05) supported versions of Universal Scene Description (USD).
+- Every Monday the plugins are built against all supported USD versions to ensure ongoing compatibility.
+- Post-build, each plugin undergoes sanity testing. These tests typically involve loading a cube to verify basic functionality.
+- Supported Plugins: GLTF, OBJ, PLY, & STL (Note: FBX and SBSAR plugins are currently not supported due to SDK constraints).
+
+2. Create USD Release Workflow:
+- Manually triggered, this workflow takes a specific USD version as input builds USD with OpenImageIO and then creates a release.
+- The compiled USD builds are archived per platform and added as binary data to the release.
+- This process stores data as metadata, ensuring that the repository's clone size remains unaffected.
+
+Platforms Supported:
+- Windows, Ubuntu, macos x64
+
+This documentation and the workflows are currently a work in progress, and updates may be made to improve or expand the features in response to developer feedback and new requirements.
 
 ## Usage
 USD will now be able to work with the supported files, for example:
