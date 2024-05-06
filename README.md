@@ -209,7 +209,7 @@ Our GitHub Actions setup includes two main workflows to support continuous integ
 ### 1. CI Build Workflow
 This workflow is triggered by any push or pull request to the main branch and ensures compatibility with Universal Scene Description (USD) versions:
 - **Versions Tested:** Builds against the oldest (23.08) and newest (24.05) supported USD versions regularly.
-- **Weekly Builds:** Every Monday, the workflow builds against all supported USD versions to confirm ongoing compatibility.
+- **Weekly Builds:** The workflow builds against all supported USD versions to confirm ongoing compatibility.
 - **Post-Build Testing:** Following the build, each plugin undergoes sanity testing, including loading a cube to check basic functionality.
 - **Supported Plugins:** Currently supports GLTF, OBJ, PLY, and STL. Note: FBX and SBSAR plugins are not supported due to SDK constraints.
 
