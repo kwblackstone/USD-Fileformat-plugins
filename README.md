@@ -204,7 +204,7 @@ Or Copy plugins:
   ```
 
 ## CI Workflow
-Our GitHub Actions setup includes two main workflows to support continuous integration and release management.
+Our GitHub Actions setup includes two main workflows to support continuous integration.
 
 ### 1. CI Build Workflow
 This workflow is triggered by any push or pull request to the main branch and ensures compatibility with Universal Scene Description (USD) versions:
@@ -218,12 +218,10 @@ This manually triggered workflow involves the following steps:
 - **Build Specification:** Takes a specific USD version as input, builds USD with OpenImageIO, and then creates a release.
 - **Archiving:** Compiled USD builds are archived per platform and added as binary data to the release, which keeps the repository's clone size manageable.
 - **Environment Setup:** After downloading and expanding the release archive, users should configure their environment as follows:
-  - Set `USD_DIR` to the directory where the release archive was expanded.
+  - In the following steps `USD_DIR` is the directory where the release archive was expanded.
   - Add `USD_DIR\lib` and `USD_DIR\bin` to your PATH.
   - Set the `PYTHONPATH` to `USD_DIR\lib\python`.
   - Define `USD_BUILD_DIR` as `USD_DIR`.
-
-This documentation and the workflows are currently a work in progress, and updates may be made to improve or expand the features in response to developer feedback and new requirements.
 
 ## Usage
 USD will now be able to work with the supported files, for example:
