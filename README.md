@@ -204,22 +204,24 @@ Or Copy plugins:
   ```
 
 ## CI Workflow
-Two primary workflows have been implemented using GitHub Actions.
+Our GitHub Actions setup includes two main workflows to support continuous integration and release management.
 
-1. CI Build Workflow:
-- Triggers on every push or pull request to main.
-- This workflow builds the plugins against the oldest (23.08) and newest (24.05) supported versions of Universal Scene Description (USD).
-- Every Monday the plugins are built against all supported USD versions to ensure ongoing compatibility.
-- Post-build, each plugin undergoes sanity testing. These tests typically involve loading a cube to verify basic functionality.
-- Supported Plugins: GLTF, OBJ, PLY, & STL (Note: FBX and SBSAR plugins are currently not supported due to SDK constraints).
+### 1. CI Build Workflow
+This workflow is triggered by any push or pull request to the main branch and ensures compatibility with Universal Scene Description (USD) versions:
+- **Versions Tested:** Builds against the oldest (23.08) and newest (24.05) supported USD versions regularly.
+- **Weekly Builds:** Every Monday, the workflow builds against all supported USD versions to confirm ongoing compatibility.
+- **Post-Build Testing:** Following the build, each plugin undergoes sanity testing, including loading a cube to check basic functionality.
+- **Supported Plugins:** Currently supports GLTF, OBJ, PLY, and STL. Note: FBX and SBSAR plugins are not supported due to SDK constraints.
 
-2. Create USD Release Workflow:
-- Manually triggered, this workflow takes a specific USD version as input builds USD with OpenImageIO and then creates a release.
-- The compiled USD builds are archived per platform and added as binary data to the release.
-- This process stores data as metadata, ensuring that the repository's clone size remains unaffected.
-
-Platforms Supported:
-- Windows, Ubuntu, macos x64
+### 2. Create USD Release Workflow
+This manually triggered workflow involves the following steps:
+- **Build Specification:** Takes a specific USD version as input, builds USD with OpenImageIO, and then creates a release.
+- **Archiving:** Compiled USD builds are archived per platform and added as binary data to the release, which keeps the repository's clone size manageable.
+- **Environment Setup:** After downloading and expanding the release archive, users should configure their environment as follows:
+  - Set `USD_DIR` to the directory where the release archive was expanded.
+  - Add `USD_DIR\lib` and `USD_DIR\bin` to your PATH.
+  - Set the `PYTHONPATH` to `USD_DIR\lib\python`.
+  - Define `USD_BUILD_DIR` as `USD_DIR`.
 
 This documentation and the workflows are currently a work in progress, and updates may be made to improve or expand the features in response to developer feedback and new requirements.
 
