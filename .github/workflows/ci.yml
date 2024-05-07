@@ -174,7 +174,13 @@ jobs:
             echo "${suffix},Failed,red" >> ${{ matrix.os }}-${{ matrix.usd_version }}.csv
           fi
 
+      - name: Handle Failure
+        if: failure()
+        run: |
+          echo "${{ matrix.os }}-${{ matrix.usd_version }},Failed,red" >> ${{ matrix.os }}-${{ matrix.usd_version }}.csv
+
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: ${{ matrix.os }}-${{ matrix.usd_version }}
           path: build/${{ matrix.os }}-${{ matrix.usd_version }}.csv
