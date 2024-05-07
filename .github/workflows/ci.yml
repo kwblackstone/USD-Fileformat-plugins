@@ -182,7 +182,7 @@ jobs:
   update_badge:
     needs: [build, prepare-matrix]
     runs-on: ubuntu-latest
-    if: always()
+    if: github.event_name == 'push'
     steps:
       - uses: actions/checkout@v4
       - name: Download All Artifacts
