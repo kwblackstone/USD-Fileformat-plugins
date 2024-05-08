@@ -219,9 +219,9 @@ This manually triggered workflow involves the following steps:
 - **Archiving:** Compiled USD builds are archived per platform and added as binary data to the release, which keeps the repository's clone size manageable.
 - **Environment Setup:** After downloading and expanding the release archive, users should configure their environment as follows:
   - In the following steps `USD_DIR` is the directory where the release archive was expanded.
-  - Add `USD_DIR\lib` and `USD_DIR\bin` to your PATH.
-  - Set the `PYTHONPATH` to `USD_DIR\lib\python`.
-  - Define `USD_BUILD_DIR` as `USD_DIR`.
+  - Add `USD_DIR\lib` and `USD_DIR\bin` to your `PATH` in windows, or to `LD_LIBRARY_PATH` in linux, mac
+  - Set `PYTHONPATH` to `USD_DIR\lib\python`.
+  - Set `USD_BUILD_DIR` as `USD_DIR`.
 
 ## Usage
 USD will now be able to work with the supported files, for example:

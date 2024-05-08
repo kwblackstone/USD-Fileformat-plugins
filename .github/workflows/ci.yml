@@ -174,7 +174,13 @@ jobs:
             echo "${suffix},Failed,red" >> ${{ matrix.os }}-${{ matrix.usd_version }}.csv
           fi
 
+      - name: Handle Failure
+        if: failure()
+        run: |
+          echo "${{ matrix.os }}-${{ matrix.usd_version }},Failed,red" >> build/${{ matrix.os }}-${{ matrix.usd_version }}.csv
+
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: ${{ matrix.os }}-${{ matrix.usd_version }}
           path: build/${{ matrix.os }}-${{ matrix.usd_version }}.csv
@@ -182,7 +188,7 @@ jobs:
   update_badge:
     needs: [build, prepare-matrix]
     runs-on: ubuntu-latest
-    if: always()
+    if: github.event_name == 'push' && always()
     steps:
       - uses: actions/checkout@v4
       - name: Download All Artifacts
@@ -218,7 +224,7 @@ jobs:
               done < "$results_file"
             fi
             echo "Updating badge for $os_version"
-            sleep 3
+            sleep 5
             gh workflow run update-badge.yml -f NAME="$os_version" -f LABEL="$os_version" -f STATUS="$STATUS" -f COLOR="$COLOR"
           done
         env:
