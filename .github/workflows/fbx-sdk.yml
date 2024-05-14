@@ -22,17 +22,17 @@ jobs:
     - name: Upload SDK for Windows
       uses: actions/upload-artifact@v4
       with:
-        name: Windows-SDK
+        name: Windows-FBX-SDK
         path: fbx202021_fbxsdk_vs2019_win.exe
 
     - name: Upload SDK for macOS
       uses: actions/upload-artifact@v4
       with:
-        name: macOS-SDK
+        name: macOS-FBX-SDK
         path: fbx202021_fbxsdk_clang_mac.pkg.tgz
 
     - name: Upload SDK for Linux
       uses: actions/upload-artifact@v4
       with:
-        name: Linux-SDK
+        name: Linux-FBX-SDK
         path: fbx202021_fbxsdk_linux.tar.gz
