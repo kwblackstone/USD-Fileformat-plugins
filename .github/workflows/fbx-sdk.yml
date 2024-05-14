@@ -1,0 +1,36 @@
+name: Weekly FBX SDK Update
+
+on:
+  schedule:
+    # Runs at 00:00 every Sunday
+    - cron: '0 0 * * 0'
+  workflow_dispatch:
+
+jobs:
+  update-sdk:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [windows-latest, macos-latest, ubuntu-latest]
+    steps:
+    - name: Set up SDK URL
+      run: |
+        if [ "${{ runner.os }}" == "Windows" ]; then
+          echo "SDK_URL=https://www.autodesk.com/content/dam/autodesk/www/adn/fbx/2020-2-1/fbx202021_fbxsdk_vs2019_win.exe" >> $GITHUB_ENV
+          echo "SDK_FILE=fbxsdk.exe" >> $GITHUB_ENV
+        elif [ "${{ runner.os }}" == "macOS" ]; then
+          echo "SDK_URL=https://www.autodesk.com/content/dam/autodesk/www/adn/fbx/2020-2-1/fbx202021_fbxsdk_clang_mac.pkg.tgz" >> $GITHUB_ENV
+          echo "SDK_FILE=fbxsdk_mac.pkg.tgz" >> $GITHUB_ENV
+        else
+          echo "SDK_URL=https://www.autodesk.com/content/dam/autodesk/www/adn/fbx/2020-2-1/fbx202021_fbxsdk_linux.tar.gz" >> $GITHUB_ENV
+          echo "SDK_FILE=fbxsdk_linux.tar.gz" >> $GITHUB_ENV
+        fi
+
+    - name: Download FBX SDK
+      run: curl -L -o ${{ env.SDK_FILE }} ${{ env.SDK_URL }}
+
+    - name: Upload FBX SDK as Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: FBX-SDK-${{ matrix.os }}
+        path: ${{ env.SDK_FILE }}
