@@ -107,6 +107,60 @@ jobs:
           echo "USD_BUILD_PATH=$USD_BUILD_PATH" >> "$GITHUB_ENV"
           echo "PYTHONPATH=${{ github.workspace }}/usd_build/lib/python" >> "$GITHUB_ENV"
 
+      - name: Get latest successful run ID of the fbx sdk workflow
+        id: get-run-id
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          RUN_ID=$(gh run list --repo ${{ github.repository }} --workflow fbx-sdk.yml --limit 1 --json databaseId,status --jq '.[] | select(.status=="completed") | .databaseId')
+          echo "RUN_ID=$RUN_ID" >> $GITHUB_ENV
+          echo "Run ID: $RUN_ID"
+
+      - name: Download FBX SDK Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ runner.os }}-FBX-SDK
+          path: ${{ github.workspace }}/FBXSDK
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: ${{ env.RUN_ID }}
+
+      - name: Set up FBX
+        run: |
+          FBX_INSTALL_DIR=${{ github.workspace }}/FBX_SDK_INSTALL
+          FBX_FOLDER=${{ github.workspace }}/FBXSDK
+          echo "FBX_FOLDER="$FBX_FOLDER >> $GITHUB_ENV
+          echo "FBX_INSTALL_DIR=$FBX_INSTALL_DIR" >> $GITHUB_ENV
+          if [ "${{ runner.os }}" == "Windows" ]; then
+            echo "FBX_OUTFILE=$FBX_FOLDER/fbx202021_fbxsdk_vs2019_win.exe" >> $GITHUB_ENV
+          elif [ "${{ runner.os }}" == "macOS" ]; then
+            echo "FBX_OUTFILE=$FBX_FOLDER/fbx202021_fbxsdk_clang_mac.pkg.tgz" >> $GITHUB_ENV
+          else
+            echo "FBX_OUTFILE=$FBX_FOLDER/fbx202021_fbxsdk_linux" >> $GITHUB_ENV
+            ls -l $FBX_FOLDER
+          fi
+
+      - name: Install FBX SDK
+        run: |
+          mkdir -p ${{ env.FBX_FOLDER }}
+          mkdir -p ${{ env.FBX_INSTALL_DIR }}
+          if [ "${{ runner.os }}" == "Windows" ]; then
+            echo "Installing FBX SDK to ${{ env.FBX_INSTALL_DIR }}..."
+            chmod +x ${{ env.FBX_OUTFILE }}
+            .${{ env.FBX_OUTFILE }} /S /D=${{ env.FBX_INSTALL_DIR }}
+          elif [ "${{ runner.os }}" == "macOS" ]; then
+            echo "Extracting and installing FBX SDK..."
+            tar -xzf ${{ env.FBX_OUTFILE }} -C ${{ env.FBX_FOLDER }}
+            sudo installer -pkg ${{ env.FBX_FOLDER }}/*.pkg -target /  # macOS installer does not support custom directory installation easily
+          else  # Linux
+            echo "Installing FBX SDK..."
+            ls -lR ${{ env.FBX_FOLDER }}
+            chmod +r ${{ env.FBX_OUTFILE }}.tar.gz
+            tar -xzf ${{ env.FBX_OUTFILE }}.tar.gz -C ${{ env.FBX_FOLDER }}
+            yes yes | ${{ env.FBX_OUTFILE }} ${{ env.FBX_INSTALL_DIR }}
+            echo "FBX SDK extracted successfully to ${{ env.FBX_INSTALL_DIR }}."
+          fi
+
       - name: Configure CMake (Cross-Platform)
         shell: bash
         run: |
@@ -117,7 +171,12 @@ jobs:
             "-DCMAKE_INSTALL_PREFIX=bin"
             "-DCMAKE_BUILD_TYPE=Release"
             "-Dpxr_ROOT=${{ github.workspace }}/usd_build"
-            "-DUSD_FILEFORMATS_ENABLE_FBX=OFF"
+            "-DUSD_FILEFORMATS_ENABLE_GLTF=OFF"
+            "-DUSD_FILEFORMATS_ENABLE_PLY=OFF"
+            "-DUSD_FILEFORMATS_ENABLE_OBJ=OFF"
+            "-DUSD_FILEFORMATS_ENABLE_STL=OFF"
+            "-DUSD_FILEFORMATS_ENABLE_FBX=ON"
+            "-DFBXSDK_ROOT=${{ env.FBX_INSTALL_DIR }}"
             "-DUSD_FILEFORMATS_BUILD_TESTS=ON"
             "-DOpenImageIO_INCLUDE_DIR=${{ github.workspace }}/usd_build/include"
             "-DOpenImageIO_INCLUDES=${{ github.workspace }}/usd_build/include"
@@ -189,6 +248,8 @@ jobs:
     needs: [build, prepare-matrix]
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && always()
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - uses: actions/checkout@v4
       - name: Download All Artifacts
@@ -227,5 +288,3 @@ jobs:
             sleep 5
             gh workflow run update-badge.yml -f NAME="$os_version" -f LABEL="$os_version" -f STATUS="$STATUS" -f COLOR="$COLOR"
           done
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
