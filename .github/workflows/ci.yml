@@ -129,14 +129,13 @@ jobs:
       - name: Set up FBX
         shell: bash
         run: |
-          FBX_INSTALL_DIR=$(echo "${{ github.workspace }}/FBX_SDK_INSTALL" | sed 's|\\|/|g')
           FBX_FOLDER=$(echo "${{ github.workspace }}/FBXSDK" | sed 's|\\|/|g')
           echo "FBX_FOLDER=$FBX_FOLDER" >> $GITHUB_ENV
           echo "FBX_INSTALL_DIR=$FBX_INSTALL_DIR" >> $GITHUB_ENV
           if [ "${{ runner.os }}" == "Windows" ]; then
             echo "FBX_OUTFILE=$FBX_FOLDER/fbx202021_fbxsdk_vs2019_win.exe" >> $GITHUB_ENV
           elif [ "${{ runner.os }}" == "macOS" ]; then
-            echo "FBX_OUTFILE=$FBX_FOLDER/fbx202021_fbxsdk_clang_mac.pkg.tgz" >> $GITHUB_ENV
+            echo "FBX_OUTFILE=$FBX_FOLDER/fbx202021_fbxsdk_clang_mac.pkg" >> $GITHUB_ENV
           else
             echo "FBX_OUTFILE=$FBX_FOLDER/fbx202021_fbxsdk_linux" >> $GITHUB_ENV
           fi
@@ -144,23 +143,25 @@ jobs:
       - name: Install FBX SDK
         shell: bash
         run: |
+          FBX_INSTALL_DIR=$(echo "${{ github.workspace }}/FBX_SDK_INSTALL" | sed 's|\\|/|g')
           mkdir -p ${{ env.FBX_FOLDER }}
-          mkdir -p ${{ env.FBX_INSTALL_DIR }}
           if [ "${{ runner.os }}" == "Windows" ]; then
-            echo "Installing FBX SDK to ${{ env.FBX_INSTALL_DIR }}..."
+            mkdir -p $FBX_INSTALL_DIR
             7z x "$FBX_OUTFILE" -o"$FBX_INSTALL_DIR" -y
           elif [ "${{ runner.os }}" == "macOS" ]; then
-            echo "Extracting and installing FBX SDK..."
-            tar -xzf ${{ env.FBX_OUTFILE }} -C ${{ env.FBX_FOLDER }}
-            sudo installer -pkg ${{ env.FBX_FOLDER }}/*.pkg -target /  # macOS installer does not support custom directory installation easily
+            tar -xzf ${{ env.FBX_OUTFILE }}.tgz -C ${{ env.FBX_FOLDER }}
+            FBX_OUTFILE_CORRECTED=$(echo "${{ env.FBX_OUTFILE }}" | sed 's/_mac.pkg/_macos.pkg/')
+            sudo installer -pkg $FBX_OUTFILE_CORRECTED -target / -verboseR
+            ls -la /Applications/Autodesk/
+            FBX_INSTALL_DIR="/Applications/Autodesk/FBX SDK/2020.2.1"
           else  # Linux
-            echo "Installing FBX SDK..."
-            ls -lR ${{ env.FBX_FOLDER }}
+            mkdir -p $FBX_INSTALL_DIR
             chmod +r ${{ env.FBX_OUTFILE }}.tar.gz
             tar -xzf ${{ env.FBX_OUTFILE }}.tar.gz -C ${{ env.FBX_FOLDER }}
-            yes yes | ${{ env.FBX_OUTFILE }} ${{ env.FBX_INSTALL_DIR }}
-            echo "FBX SDK extracted successfully to ${{ env.FBX_INSTALL_DIR }}."
+            yes yes | ${{ env.FBX_OUTFILE }} $FBX_INSTALL_DIR
+            echo "FBX SDK extracted successfully to $FBX_INSTALL_DIR."
           fi
+          echo "FBX_INSTALL_DIR=$FBX_INSTALL_DIR" >> $GITHUB_ENV
 
       - name: Configure CMake (Cross-Platform)
         shell: bash

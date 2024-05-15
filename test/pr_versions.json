@@ -1,5 +1,5 @@
 {
     "include": [
-        {"os": "windows-2022", "usd_version": "2405"}
+        {"os": "macOS-14", "usd_version": "2405"}
     ]
 }
