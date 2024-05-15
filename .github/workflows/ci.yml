@@ -58,7 +58,7 @@ jobs:
 
       - name: Install dependencies on Windows
         if: runner.os == 'Windows'
-        run: choco install cmake
+        run: choco install cmake 7zip
 
       - name: Install dependencies on macOS
         if: runner.os == 'macOS'
@@ -108,6 +108,7 @@ jobs:
           echo "PYTHONPATH=${{ github.workspace }}/usd_build/lib/python" >> "$GITHUB_ENV"
 
       - name: Get latest successful run ID of the fbx sdk workflow
+        shell: bash
         id: get-run-id
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -126,10 +127,11 @@ jobs:
           run-id: ${{ env.RUN_ID }}
 
       - name: Set up FBX
+        shell: bash
         run: |
-          FBX_INSTALL_DIR=${{ github.workspace }}/FBX_SDK_INSTALL
-          FBX_FOLDER=${{ github.workspace }}/FBXSDK
-          echo "FBX_FOLDER="$FBX_FOLDER >> $GITHUB_ENV
+          FBX_INSTALL_DIR=$(echo "${{ github.workspace }}/FBX_SDK_INSTALL" | sed 's|\\|/|g')
+          FBX_FOLDER=$(echo "${{ github.workspace }}/FBXSDK" | sed 's|\\|/|g')
+          echo "FBX_FOLDER=$FBX_FOLDER" >> $GITHUB_ENV
           echo "FBX_INSTALL_DIR=$FBX_INSTALL_DIR" >> $GITHUB_ENV
           if [ "${{ runner.os }}" == "Windows" ]; then
             echo "FBX_OUTFILE=$FBX_FOLDER/fbx202021_fbxsdk_vs2019_win.exe" >> $GITHUB_ENV
@@ -137,17 +139,16 @@ jobs:
             echo "FBX_OUTFILE=$FBX_FOLDER/fbx202021_fbxsdk_clang_mac.pkg.tgz" >> $GITHUB_ENV
           else
             echo "FBX_OUTFILE=$FBX_FOLDER/fbx202021_fbxsdk_linux" >> $GITHUB_ENV
-            ls -l $FBX_FOLDER
           fi
 
       - name: Install FBX SDK
+        shell: bash
         run: |
           mkdir -p ${{ env.FBX_FOLDER }}
           mkdir -p ${{ env.FBX_INSTALL_DIR }}
           if [ "${{ runner.os }}" == "Windows" ]; then
             echo "Installing FBX SDK to ${{ env.FBX_INSTALL_DIR }}..."
-            chmod +x ${{ env.FBX_OUTFILE }}
-            .${{ env.FBX_OUTFILE }} /S /D=${{ env.FBX_INSTALL_DIR }}
+            7z x "$FBX_OUTFILE" -o"$FBX_INSTALL_DIR" -y
           elif [ "${{ runner.os }}" == "macOS" ]; then
             echo "Extracting and installing FBX SDK..."
             tar -xzf ${{ env.FBX_OUTFILE }} -C ${{ env.FBX_FOLDER }}
