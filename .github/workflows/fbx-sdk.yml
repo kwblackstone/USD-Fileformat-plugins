@@ -1,4 +1,4 @@
-name: FBX SDK Update
+name: FBX SDK
 
 on:
   schedule:
