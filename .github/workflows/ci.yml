@@ -63,7 +63,7 @@ jobs:
       - name: Install dependencies on macOS
         if: runner.os == 'macOS'
         run: |
-          brew install cmake libheif libraw openjpeg || true
+          brew install libheif libraw openjpeg || true
 
       - name: Download release asset
         run: gh release download USD-${{ matrix.usd_version }}-Artifacts -p "usd-${{ matrix.usd_version }}-${{ matrix.os }}.zip" --repo ${{ github.repository }}
