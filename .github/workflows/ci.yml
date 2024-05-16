@@ -131,7 +131,6 @@ jobs:
         run: |
           FBX_FOLDER=$(echo "${{ github.workspace }}/FBXSDK" | sed 's|\\|/|g')
           echo "FBX_FOLDER=$FBX_FOLDER" >> $GITHUB_ENV
-          echo "FBX_INSTALL_DIR=$FBX_INSTALL_DIR" >> $GITHUB_ENV
           if [ "${{ runner.os }}" == "Windows" ]; then
             echo "FBX_OUTFILE=$FBX_FOLDER/fbx202021_fbxsdk_vs2019_win.exe" >> $GITHUB_ENV
           elif [ "${{ runner.os }}" == "macOS" ]; then
@@ -140,26 +139,32 @@ jobs:
             echo "FBX_OUTFILE=$FBX_FOLDER/fbx202021_fbxsdk_linux" >> $GITHUB_ENV
           fi
 
-      - name: Install FBX SDK
+      - name: Install FBX SDK Windows
+        if: runner.os == 'Windows'
         shell: bash
         run: |
-          FBX_INSTALL_DIR=$(echo "${{ github.workspace }}/FBX_SDK_INSTALL" | sed 's|\\|/|g')
           mkdir -p ${{ env.FBX_FOLDER }}
-          if [ "${{ runner.os }}" == "Windows" ]; then
-            mkdir -p $FBX_INSTALL_DIR
-            7z x "$FBX_OUTFILE" -o"$FBX_INSTALL_DIR" -y
-          elif [ "${{ runner.os }}" == "macOS" ]; then
+          FBX_INSTALL_DIR=$(echo "${{ github.workspace }}/FBX_SDK_INSTALL" | sed 's|\\|/|g')
+          mkdir -p $FBX_INSTALL_DIR
+          7z x "$FBX_OUTFILE" -o"$FBX_INSTALL_DIR" -y
+          echo "FBX_INSTALL_DIR=$FBX_INSTALL_DIR" >> $GITHUB_ENV
+
+      - name: Install FBX SDK Unix
+        if: runner.os != 'Windows'
+        run: |
+          mkdir -p ${{ env.FBX_FOLDER }}
+          if [ "${{ runner.os }}" == "macOS" ]; then
+            FBX_INSTALL_DIR="/Applications/Autodesk/FBXSDK/2020.2.1"
             tar -xzf ${{ env.FBX_OUTFILE }}.tgz -C ${{ env.FBX_FOLDER }}
             FBX_OUTFILE_CORRECTED=$(echo "${{ env.FBX_OUTFILE }}" | sed 's/_mac.pkg/_macos.pkg/')
             sudo installer -pkg $FBX_OUTFILE_CORRECTED -target / -verboseR
-            ls -la /Applications/Autodesk/
-            FBX_INSTALL_DIR="/Applications/Autodesk/FBX SDK/2020.2.1"
+            sudo mv "/Applications/Autodesk/FBX SDK/" "/Applications/Autodesk/FBXSDK"
           else  # Linux
-            mkdir -p $FBX_INSTALL_DIR
+            FBX_INSTALL_DIR=${{ github.workspace }}/FBX_SDK_INSTALL
             chmod +r ${{ env.FBX_OUTFILE }}.tar.gz
             tar -xzf ${{ env.FBX_OUTFILE }}.tar.gz -C ${{ env.FBX_FOLDER }}
-            yes yes | ${{ env.FBX_OUTFILE }} $FBX_INSTALL_DIR
-            echo "FBX SDK extracted successfully to $FBX_INSTALL_DIR."
+            mkdir -p ${{ github.workspace }}/FBX_SDK_INSTALL
+            yes yes | ${{ env.FBX_OUTFILE }} ${{ github.workspace }}/FBX_SDK_INSTALL
           fi
           echo "FBX_INSTALL_DIR=$FBX_INSTALL_DIR" >> $GITHUB_ENV
 
@@ -167,8 +172,6 @@ jobs:
         shell: bash
         run: |
           baseArgs="-S . -B build -G Ninja"
-
-          # Common arguments for all platforms
           commonArgs=(
             "-DCMAKE_INSTALL_PREFIX=bin"
             "-DCMAKE_BUILD_TYPE=Release"
