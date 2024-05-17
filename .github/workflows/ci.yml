@@ -21,10 +21,24 @@ jobs:
       id: set-matrix
       run: |
         if [ "${{ github.event_name }}" == "schedule" ]; then
-          echo "matrix=$(jq -c . < ${{ github.workspace }}/test/full_versions.json)" >> $GITHUB_OUTPUT
+          MATRIX_FILE="${{ github.workspace }}/test/full_versions.json"
         else
-          echo "matrix=$(jq -c . < ${{ github.workspace }}/test/pr_versions.json)" >> $GITHUB_OUTPUT
+          MATRIX_FILE="${{ github.workspace }}/test/pr_versions.json"
         fi
+        JSON=$(jq -c . < "$MATRIX_FILE")
+        MODIFIED_JSON='{"include":[]}'
+        PLUGINS=("GLTF" "PLY" "OBJ" "STL" "FBX")
+
+        for row in $(echo "${JSON}" | jq -c '.include[]'); do
+          for plugin in "${PLUGINS[@]}"; do
+            NEW_ROW=$(echo "$row" | jq '. + {"GLTF":"OFF", "PLY":"OFF", "OBJ":"OFF", "STL":"OFF", "FBX":"OFF"}')
+            NEW_ROW=$(echo "$NEW_ROW" | jq '."'$plugin'" = "ON"')
+            MODIFIED_JSON=$(echo "$MODIFIED_JSON" | jq '.include += ['"$NEW_ROW"']')
+          done
+          ALL_ON_ROW=$(echo "$row" | jq '. + {"GLTF":"ON", "PLY":"ON", "OBJ":"ON", "STL":"ON", "FBX":"ON"}')
+          MODIFIED_JSON=$(echo "$MODIFIED_JSON" | jq '.include += ['"$ALL_ON_ROW"']')
+        done
+        echo "matrix=$(echo "$MODIFIED_JSON" | jq -c .)" >> $GITHUB_OUTPUT
 
   build:
     needs: prepare-matrix
@@ -40,6 +54,15 @@ jobs:
         with:
           python-version: '3.10.11'
         id: setup-python
+
+      - name: Determine Plugin Configuration
+        shell: bash
+        run: |
+          if [ "${{ matrix.GLTF }}" == "ON" ] && [ "${{ matrix.PLY }}" == "ON" ] && [ "${{ matrix.OBJ }}" == "ON" ] && [ "${{ matrix.STL }}" == "ON" ] && [ "${{ matrix.FBX }}" == "ON" ]; then
+            echo "ALL_PLUGINS_ON=true" >> $GITHUB_ENV
+          else
+            echo "ALL_PLUGINS_ON=false" >> $GITHUB_ENV
+          fi
 
       - name: Install Ninja (Cross-platform)
         run: |
@@ -118,6 +141,7 @@ jobs:
           echo "Run ID: $RUN_ID"
 
       - name: Download FBX SDK Artifact
+        if: matrix.FBX == 'ON'
         uses: actions/download-artifact@v4
         with:
           name: ${{ runner.os }}-FBX-SDK
@@ -127,6 +151,7 @@ jobs:
           run-id: ${{ env.RUN_ID }}
 
       - name: Set up FBX
+        if: matrix.FBX == 'ON'
         shell: bash
         run: |
           FBX_FOLDER=$(echo "${{ github.workspace }}/FBXSDK" | sed 's|\\|/|g')
@@ -140,7 +165,7 @@ jobs:
           fi
 
       - name: Install FBX SDK Windows
-        if: runner.os == 'Windows'
+        if: matrix.FBX == 'ON' && runner.os == 'Windows'
         shell: bash
         run: |
           mkdir -p ${{ env.FBX_FOLDER }}
@@ -150,7 +175,7 @@ jobs:
           echo "FBX_INSTALL_DIR=$FBX_INSTALL_DIR" >> $GITHUB_ENV
 
       - name: Install FBX SDK Unix
-        if: runner.os != 'Windows'
+        if: matrix.FBX == 'ON' && runner.os != 'Windows'
         run: |
           mkdir -p ${{ env.FBX_FOLDER }}
           if [ "${{ runner.os }}" == "macOS" ]; then
@@ -176,11 +201,11 @@ jobs:
             "-DCMAKE_INSTALL_PREFIX=bin"
             "-DCMAKE_BUILD_TYPE=Release"
             "-Dpxr_ROOT=${{ github.workspace }}/usd_build"
-            "-DUSD_FILEFORMATS_ENABLE_GLTF=ON"
-            "-DUSD_FILEFORMATS_ENABLE_PLY=ON"
-            "-DUSD_FILEFORMATS_ENABLE_OBJ=ON"
-            "-DUSD_FILEFORMATS_ENABLE_STL=ON"
-            "-DUSD_FILEFORMATS_ENABLE_FBX=ON"
+            "-DUSD_FILEFORMATS_ENABLE_GLTF=${{ matrix.GLTF }}"
+            "-DUSD_FILEFORMATS_ENABLE_PLY=${{ matrix.PLY }}"
+            "-DUSD_FILEFORMATS_ENABLE_OBJ=${{ matrix.OBJ }}"
+            "-DUSD_FILEFORMATS_ENABLE_STL=${{ matrix.STL }}"
+            "-DUSD_FILEFORMATS_ENABLE_FBX=${{ matrix.FBX }}"
             "-DFBXSDK_ROOT=${{ env.FBX_INSTALL_DIR }}"
             "-DUSD_FILEFORMATS_BUILD_TESTS=ON"
             "-DOpenImageIO_INCLUDE_DIR=${{ github.workspace }}/usd_build/include"
@@ -239,12 +264,12 @@ jobs:
           fi
 
       - name: Handle Failure
-        if: failure()
+        if: failure() && ${{ env.ALL_PLUGINS_ON }} == 'true'
         run: |
           echo "${{ matrix.os }}-${{ matrix.usd_version }},Failed,red" >> build/${{ matrix.os }}-${{ matrix.usd_version }}.csv
 
       - uses: actions/upload-artifact@v4
-        if: always()
+        if: always() && ${{ env.ALL_PLUGINS_ON }} == 'true'
         with:
           name: ${{ matrix.os }}-${{ matrix.usd_version }}
           path: build/${{ matrix.os }}-${{ matrix.usd_version }}.csv
@@ -252,7 +277,14 @@ jobs:
   update_badge:
     needs: [build, prepare-matrix]
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && always()
+    if: >
+      github.event_name == 'push' &&
+      always() &&
+      ${{ matrix.GLTF }} == 'ON' &&
+      ${{ matrix.PLY }} == 'ON' &&
+      ${{ matrix.OBJ }} == 'ON' &&
+      ${{ matrix.STL }} == 'ON' &&
+      ${{ matrix.FBX }} == 'ON' &&
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
