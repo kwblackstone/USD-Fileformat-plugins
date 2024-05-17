@@ -285,10 +285,12 @@ jobs:
           echo "BUILD_STATUS_STRING=Failed" >> $GITHUB_ENV
           echo "BUILD_STATUS_COLOR=red" >> $GITHUB_ENV
 
-      - name: Setup Badge
-        uses: emibcn/badge-action@v2.0.2
+      - name: Create Awesome Badge
+        uses: schneegans/dynamic-badges-action@v1.7.0
         with:
+          auth: ${{ secrets.GIST_SECRET }}
+          gistID: 28b0c56a37b0d5fa6edc009068abc7ba
+          filename: ${{ matrix.os }}-${{ matrix.usd_version }}-${{ env.PLUGIN_CONFIG }}.json # Use test.svg if you want to use the SVG mode.
           label: ${{ matrix.os }}-${{ matrix.usd_version }}-${{ env.PLUGIN_CONFIG }}
-          status:  ${{ env.BUILD_STATUS_STRING }}
+          message: ${{ env.BUILD_STATUS_STRING }}
           color: ${{ env.BUILD_STATUS_COLOR }}
-          path: '.github/badges/${{ matrix.os }}-${{ matrix.usd_version }}-${{ env.PLUGIN_CONFIG }}.svg'
