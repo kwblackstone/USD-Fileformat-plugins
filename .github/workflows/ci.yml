@@ -277,14 +277,7 @@ jobs:
   update_badge:
     needs: [build, prepare-matrix]
     runs-on: ubuntu-latest
-    if: >
-      github.event_name == 'push' &&
-      always() &&
-      ${{ matrix.GLTF }} == 'ON' &&
-      ${{ matrix.PLY }} == 'ON' &&
-      ${{ matrix.OBJ }} == 'ON' &&
-      ${{ matrix.STL }} == 'ON' &&
-      ${{ matrix.FBX }} == 'ON'
+    if: github.event_name == 'push' && always() && ${{ matrix.GLTF }} == 'ON' && ${{ matrix.PLY == 'ON' }} && ${{ matrix.OBJ }} == 'ON' && ${{ matrix.STL }} == 'ON' && ${{ matrix.FBX }} == 'ON'
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
