@@ -222,13 +222,7 @@ jobs:
           cmake $fullCmakeArgs
 
       - name: Build and Display Linker Command
-        run: |
-          if [ "${{ matrix.config }}" = "PLY" ] && [ "${{ matrix.usd_version }}" = "2405" ]; then
-            echo "Failing the build for PLY with USD version 2405"
-            exit 1
-          else
-            cmake --build build --config Release
-          fi
+        run: cmake --build build --config Release
 
       - name: Install
         run: cmake --install build --config Release
@@ -256,8 +250,8 @@ jobs:
           echo "Test exit status: $result"
           suffix="${{ matrix.os }}-${{ matrix.usd_version }}-${{ matrix.config }}"
           if [[ "$result" -eq 0 ]]; then
-            echo "BUILD_STATUS_STRING=Pass" >> $GITHUB_ENV
-            echo "BUILD_STATUS_COLOR=orange" >> $GITHUB_ENV
+            echo "BUILD_STATUS_STRING=Passed" >> $GITHUB_ENV
+            echo "BUILD_STATUS_COLOR=green" >> $GITHUB_ENV
           else
             echo "BUILD_STATUS_STRING=Failed" >> $GITHUB_ENV
             echo "BUILD_STATUS_COLOR=red" >> $GITHUB_ENV
@@ -275,7 +269,7 @@ jobs:
         with:
           auth: ${{ secrets.GIST_SECRET }}
           gistID: 28b0c56a37b0d5fa6edc009068abc7ba
-          filename: ${{ matrix.os }}-${{ matrix.usd_version }}-${{ matrix.config }}.json # Use test.svg if you want to use the SVG mode.
+          filename: ${{ matrix.os }}-${{ matrix.usd_version }}-${{ matrix.config }}.json
           label: ${{ matrix.os }}-${{ matrix.usd_version }}-${{ matrix.config }}
           message: ${{ env.BUILD_STATUS_STRING }}
           color: ${{ env.BUILD_STATUS_COLOR }}
