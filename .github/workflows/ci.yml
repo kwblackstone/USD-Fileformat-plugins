@@ -222,7 +222,13 @@ jobs:
           cmake $fullCmakeArgs
 
       - name: Build and Display Linker Command
-        run: cmake --build build --config Release
+        run: |
+          if [ "${{ matrix.config }}" = "PLY" ] && [ "${{ matrix.usd_version }}" = "2405" ]; then
+            echo "Failing the build for PLY with USD version 2405"
+            exit 1
+          else
+            cmake --build build --config Release
+          fi
 
       - name: Install
         run: cmake --install build --config Release
@@ -263,7 +269,8 @@ jobs:
           echo "BUILD_STATUS_STRING=Failed" >> $GITHUB_ENV
           echo "BUILD_STATUS_COLOR=red" >> $GITHUB_ENV
 
-      - name: Create Awesome Badge
+      - name: Update Badge
+        if: always()
         uses: schneegans/dynamic-badges-action@v1.7.0
         with:
           auth: ${{ secrets.GIST_SECRET }}
@@ -272,3 +279,4 @@ jobs:
           label: ${{ matrix.os }}-${{ matrix.usd_version }}-${{ matrix.config }}
           message: ${{ env.BUILD_STATUS_STRING }}
           color: ${{ env.BUILD_STATUS_COLOR }}
+          forceUpdate: true
