@@ -272,7 +272,7 @@ jobs:
           echo "${{ matrix.os }}-${{ matrix.usd_version }},Failed,red" >> build/${{ matrix.os }}-${{ matrix.usd_version }}.csv
 
       - uses: actions/upload-artifact@v4
-        if: (failure() || success()) && ${{ env.ALL_PLUGINS_ON }} == 'true'
+        if: ${{ env.ALL_PLUGINS_ON }} == 'true'
         with:
           name: ${{ matrix.os }}-${{ matrix.usd_version }}
           path: build/${{ matrix.os }}-${{ matrix.usd_version }}.csv
