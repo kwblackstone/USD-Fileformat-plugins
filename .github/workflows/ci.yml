@@ -46,6 +46,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix: ${{fromJson(needs.prepare-matrix.outputs.matrix)}}
+    name: build (${{ matrix.os }}-${{ matrix.usd_version }}-${{ steps.plugin_config.outputs.config }})
     steps:
       - uses: actions/checkout@v4
       - uses: ilammy/msvc-dev-cmd@v1
@@ -76,6 +77,7 @@ jobs:
               echo "PLUGIN_CONFIG=Undefined" >> $GITHUB_ENV
             fi
           fi
+          echo "config=$PLUGIN_CONFIG" >> $GITHUB_OUTPUT
 
       - name: Install Ninja (Cross-platform)
         run: |
