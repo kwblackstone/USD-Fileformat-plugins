@@ -286,11 +286,9 @@ jobs:
           echo "BUILD_STATUS_COLOR=red" >> $GITHUB_ENV
 
       - name: Setup Badge
-        uses: RubbaBoy/BYOB@v1.3.0
+        uses: emibcn/badge-action@v2.0.2
         with:
-          NAME: ${{ matrix.os }}-${{ matrix.usd_version }}-${{ env.PLUGIN_CONFIG }}
-          LABEL: ${{ matrix.os }}-${{ matrix.usd_version }}-${{ env.PLUGIN_CONFIG }}
-          STATUS: ${{ env.BUILD_STATUS_STRING }}
-          COLOR: ${{ env.BUILD_STATUS_COLOR }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-  
+          label: ${{ matrix.os }}-${{ matrix.usd_version }}-${{ env.PLUGIN_CONFIG }}
+          status:  ${{ env.BUILD_STATUS_STRING }}
+          color: ${{ env.BUILD_STATUS_COLOR }}
+          path: '.github/badges/${{ matrix.os }}-${{ matrix.usd_version }}-${{ env.PLUGIN_CONFIG }}.svg'
