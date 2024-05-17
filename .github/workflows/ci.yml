@@ -123,7 +123,7 @@ jobs:
 
       - name: Get latest successful run ID of the fbx sdk workflow
         shell: bash
-        if: ${{ matrix.config }} == 'FBX' || ${{ matrix.config }} == 'ALL'
+        if: matrix.config == 'FBX' || matrix.config == 'ALL'
         id: get-run-id
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -133,7 +133,7 @@ jobs:
           echo "Run ID: $RUN_ID"
 
       - name: Download FBX SDK Artifact
-        if: ${{ matrix.config }} == 'FBX' ||${{ matrix.config }} == 'ALL'
+        if: matrix.config == 'FBX' || matrix.config == 'ALL'
         uses: actions/download-artifact@v4
         with:
           name: ${{ runner.os }}-FBX-SDK
@@ -143,7 +143,7 @@ jobs:
           run-id: ${{ env.RUN_ID }}
 
       - name: Set up FBX
-        if: ${{ matrix.config }} == 'FBX' || ${{ matrix.config }} == 'ALL'
+        if: matrix.config == 'FBX' || matrix.config == 'ALL'
         shell: bash
         run: |
           FBX_FOLDER=$(echo "${{ github.workspace }}/FBXSDK" | sed 's|\\|/|g')
@@ -157,7 +157,7 @@ jobs:
           fi
 
       - name: Install FBX SDK Windows
-        if: runner.os == 'Windows' && (${{ matrix.config }} == 'FBX' || ${{ matrix.config }} == 'ALL')
+        if: runner.os == 'Windows' && (matrix.config == 'FBX' || matrix.config == 'ALL')
         shell: bash
         run: |
           mkdir -p ${{ env.FBX_FOLDER }}
@@ -167,7 +167,7 @@ jobs:
           echo "FBX_INSTALL_DIR=$FBX_INSTALL_DIR" >> $GITHUB_ENV
 
       - name: Install FBX SDK Unix
-        if: runner.os != 'Windows' && (${{ matrix.config }} == 'FBX' || ${{ matrix.config }} == 'ALL')
+        if: runner.os != 'Windows' && (matrix.config == 'FBX' || matrix.config == 'ALL')
         run: |
           mkdir -p ${{ env.FBX_FOLDER }} 
           if [ "${{ runner.os }}" == "macOS" ]; then
