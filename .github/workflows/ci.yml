@@ -56,15 +56,25 @@ jobs:
         id: setup-python
 
       - name: Determine Plugin Configuration
-        id: is_all_plugins
+        id: plugin_config
         shell: bash
         run: |
           if [ "${{ matrix.GLTF }}" == "ON" ] && [ "${{ matrix.PLY }}" == "ON" ] && [ "${{ matrix.OBJ }}" == "ON" ] && [ "${{ matrix.STL }}" == "ON" ] && [ "${{ matrix.FBX }}" == "ON" ]; then
-            echo "ALL_PLUGINS_ON=true" >> $GITHUB_ENV
-            echo "run_badge=true" >> $GITHUB_OUTPUT
+            echo "PLUGIN_CONFIG=ALL" >> $GITHUB_ENV
           else
-            echo "ALL_PLUGINS_ON=false" >> $GITHUB_ENV
-            echo "run_badge=false" >> $GITHUB_OUTPUT
+            if [ "${{ matrix.GLTF }}" == "ON" ]; then
+              echo "PLUGIN_CONFIG=GLTF" >> $GITHUB_ENV
+            elif [ "${{ matrix.PLY }}" == "ON" ]; then
+              echo "PLUGIN_CONFIG=PLY" >> $GITHUB_ENV
+            elif [ "${{ matrix.OBJ }}" == "ON" ]; then
+              echo "PLUGIN_CONFIG=OBJ" >> $GITHUB_ENV
+            elif [ "${{ matrix.STL }}" == "ON" ]; then
+              echo "PLUGIN_CONFIG=STL" >> $GITHUB_ENV
+            elif [ "${{ matrix.FBX }}" == "ON" ]; then
+              echo "PLUGIN_CONFIG=FBX" >> $GITHUB_ENV
+            else
+              echo "PLUGIN_CONFIG=Undefined" >> $GITHUB_ENV
+            fi
           fi
 
       - name: Install Ninja (Cross-platform)
@@ -135,6 +145,7 @@ jobs:
 
       - name: Get latest successful run ID of the fbx sdk workflow
         shell: bash
+        if: matrix.FBX == 'ON' || ${{ env.PLUGIN_CONFIG }} == 'ALL'
         id: get-run-id
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -144,7 +155,7 @@ jobs:
           echo "Run ID: $RUN_ID"
 
       - name: Download FBX SDK Artifact
-        if: matrix.FBX == 'ON'
+        if: matrix.FBX == 'ON' || ${{ env.PLUGIN_CONFIG }} == 'ALL'
         uses: actions/download-artifact@v4
         with:
           name: ${{ runner.os }}-FBX-SDK
@@ -154,7 +165,7 @@ jobs:
           run-id: ${{ env.RUN_ID }}
 
       - name: Set up FBX
-        if: matrix.FBX == 'ON'
+        if: matrix.FBX == 'ON' || ${{ env.PLUGIN_CONFIG }} == 'ALL'
         shell: bash
         run: |
           FBX_FOLDER=$(echo "${{ github.workspace }}/FBXSDK" | sed 's|\\|/|g')
@@ -168,7 +179,7 @@ jobs:
           fi
 
       - name: Install FBX SDK Windows
-        if: matrix.FBX == 'ON' && runner.os == 'Windows'
+        if: (matrix.FBX == 'ON' ${{ env.PLUGIN_CONFIG }} == 'ALL') && runner.os == 'Windows'
         shell: bash
         run: |
           mkdir -p ${{ env.FBX_FOLDER }}
@@ -178,7 +189,7 @@ jobs:
           echo "FBX_INSTALL_DIR=$FBX_INSTALL_DIR" >> $GITHUB_ENV
 
       - name: Install FBX SDK Unix
-        if: matrix.FBX == 'ON' && runner.os != 'Windows'
+        if: (matrix.FBX == 'ON' || ${{ env.PLUGIN_CONFIG }} == 'ALL') && runner.os != 'Windows'
         run: |
           mkdir -p ${{ env.FBX_FOLDER }}
           if [ "${{ runner.os }}" == "macOS" ]; then
@@ -259,31 +270,27 @@ jobs:
           ctest -VV -C Release
           result=$?
           echo "Test exit status: $result"
-          suffix="${{ matrix.os }}-${{ matrix.usd_version }}"
+          suffix="${{ matrix.os }}-${{ matrix.usd_version }}-${{ env.PLUGIN_CONFIG }}"
           if [[ "$result" -eq 0 ]]; then
-            echo "${suffix},Passed,green" >> ${{ matrix.os }}-${{ matrix.usd_version }}.csv
+            echo "${suffix},Passed,green" >> ${suffix}.csv
           else
-            echo "${suffix},Failed,red" >> ${{ matrix.os }}-${{ matrix.usd_version }}.csv
+            echo "${suffix},Failed,red" >> ${suffix}.csv
           fi
 
       - name: Handle Failure
-        if: failure() && ${{ env.ALL_PLUGINS_ON }} == 'true'
+        if: failure()
         run: |
-          echo "${{ matrix.os }}-${{ matrix.usd_version }},Failed,red" >> build/${{ matrix.os }}-${{ matrix.usd_version }}.csv
+          echo "${{ matrix.os }}-${{ matrix.usd_version }}-${{ env.PLUGIN_CONFIG }},Failed,red" >> build/${{ matrix.os }}-${{ matrix.usd_version }}-${{ env.PLUGIN_CONFIG }}.csv
 
       - uses: actions/upload-artifact@v4
-        if: ${{ env.ALL_PLUGINS_ON }} == 'true'
         with:
-          name: ${{ matrix.os }}-${{ matrix.usd_version }}
-          path: build/${{ matrix.os }}-${{ matrix.usd_version }}.csv
-
-    outputs:
-      build_result: ${{ steps.is_all_plugins.outputs.run_badge }}
+          name: ${{ matrix.os }}-${{ matrix.usd_version }}-${{ env.PLUGIN_CONFIG }}
+          path: build/${{ matrix.os }}-${{ matrix.usd_version }}-${{ env.PLUGIN_CONFIG }}.csv
 
   update_badge:
     needs: [build, prepare-matrix]
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && always() && needs.build.outputs.run_badge == 'true'
+    if: github.event_name == 'push' && always()
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
