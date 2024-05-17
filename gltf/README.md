@@ -1,5 +1,12 @@
 # USDGLTF
 
+[![](https://byob.yarr.is/kwblackstone/USD-Fileformat-plugins/windows-2022-2405-GLTF)](https://github.com/kwblackstone/USD-Fileformat-plugins/actions/workflows/ci.yml) [![](https://byob.yarr.is/kwblackstone/USD-Fileformat-plugins/windows-2022-2311-GLTF)](https://github.com/kwblackstone/USD-Fileformat-plugins/actions/workflows/ci.yml) [![](https://byob.yarr.is/kwblackstone/USD-Fileformat-plugins/windows-2022-2308-GLTF)](https://github.com/kwblackstone/USD-Fileformat-plugins/actions/workflows/ci.yml)
+
+[![](https://byob.yarr.is/kwblackstone/USD-Fileformat-plugins/macOS-14-2405-GLTF)](https://github.com/kwblackstone/USD-Fileformat-plugins/actions/workflows/ci.yml) [![](https://byob.yarr.is/kwblackstone/USD-Fileformat-plugins/macOS-13-2405-GLTF)](https://github.com/kwblackstone/USD-Fileformat-plugins/actions/workflows/ci.yml) [![](https://byob.yarr.is/kwblackstone/USD-Fileformat-plugins/macOS-13-2311-GLTF)](https://github.com/kwblackstone/USD-Fileformat-plugins/actions/workflows/ci.yml) [![](https://byob.yarr.is/kwblackstone/USD-Fileformat-plugins/macOS-13-2308-GLTF)](https://github.com/kwblackstone/USD-Fileformat-plugins/actions/workflows/ci.yml)
+
+[![](https://byob.yarr.is/kwblackstone/USD-Fileformat-plugins/ubuntu-22.04-2405-GLTF)](https://github.com/kwblackstone/USD-Fileformat-plugins/actions/workflows/ci.yml) [![](https://byob.yarr.is/kwblackstone/USD-Fileformat-plugins/ubuntu-22.04-2311-GLTF)](https://github.com/kwblackstone/USD-Fileformat-plugins/actions/workflows/ci.yml) [![](https://byob.yarr.is/kwblackstone/USD-Fileformat-plugins/ubuntu-22.04-2308-GLTF)](https://github.com/kwblackstone/USD-Fileformat-plugins/actions/workflows/ci.yml)
+
+
 ## Supported features
 
 |Feature|Import|Export|

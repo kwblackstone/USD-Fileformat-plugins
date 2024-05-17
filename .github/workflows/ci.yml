@@ -272,62 +272,25 @@ jobs:
           echo "Test exit status: $result"
           suffix="${{ matrix.os }}-${{ matrix.usd_version }}-${{ env.PLUGIN_CONFIG }}"
           if [[ "$result" -eq 0 ]]; then
-            echo "${suffix},Passed,green" >> ${suffix}.csv
+            echo "BUILD_STATUS_STRING=Passed" >> $GITHUB_ENV
+            echo "BUILD_STATUS_COLOR=green" >> $GITHUB_ENV
           else
-            echo "${suffix},Failed,red" >> ${suffix}.csv
+            echo "BUILD_STATUS_STRING=Failed" >> $GITHUB_ENV
+            echo "BUILD_STATUS_COLOR=red" >> $GITHUB_ENV
           fi
 
       - name: Handle Failure
         if: failure()
         run: |
-          echo "${{ matrix.os }}-${{ matrix.usd_version }}-${{ env.PLUGIN_CONFIG }},Failed,red" >> build/${{ matrix.os }}-${{ matrix.usd_version }}-${{ env.PLUGIN_CONFIG }}.csv
+          echo "BUILD_STATUS_STRING=Failed" >> $GITHUB_ENV
+          echo "BUILD_STATUS_COLOR=red" >> $GITHUB_ENV
 
-      - uses: actions/upload-artifact@v4
+      - name: Setup Badge
+        uses: RubbaBoy/BYOB@v1.3.0
         with:
-          name: ${{ matrix.os }}-${{ matrix.usd_version }}-${{ env.PLUGIN_CONFIG }}
-          path: build/${{ matrix.os }}-${{ matrix.usd_version }}-${{ env.PLUGIN_CONFIG }}.csv
-
-  update_badge:
-    needs: [build, prepare-matrix]
-    runs-on: ubuntu-latest
-    if: github.event_name == 'push' && always()
-    env:
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    steps:
-      - uses: actions/checkout@v4
-      - name: Download All Artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: artifacts/
-
-      - name: Process Artifacts
-        run: |
-          find artifacts/ -type f
-          for artifact_dir in artifacts/*; do
-            os_version=$(basename $artifact_dir)
-            echo "Processing directory $artifact_dir for $os_version"
-            results_file="$artifact_dir/${os_version}.csv"
-            if [ ! -f "$results_file" ]; then
-              STATUS="failed"
-              COLOR="red"
-              echo "No results file found for $os_version. Setting status to failed."
-            else
-              echo "Results file found for $os_version. Parsing data."
-              while IFS=',' read -r file_os status color; do
-                echo "file_os: $file_os"
-                echo "os_version: $os_version"
-                if [[ "$file_os" == "$os_version" ]]; then
-                  STATUS=$status
-                  COLOR=$color
-                  echo "STATUS: $STATUS"
-                  echo "status: $status"
-                  echo "COLOR: $color"
-                  echo "color: $color"
-                  break
-                fi
-              done < "$results_file"
-            fi
-            echo "Updating badge for $os_version"
-            sleep 5
-            gh workflow run update-badge.yml -f NAME="$os_version" -f LABEL="$os_version" -f STATUS="$STATUS" -f COLOR="$COLOR"
-          done
+          NAME: ${{ matrix.os }}-${{ matrix.usd_version }}-${{ env.PLUGIN_CONFIG }}
+          LABEL: ${{ matrix.os }}-${{ matrix.usd_version }}-${{ env.PLUGIN_CONFIG }}
+          STATUS: ${{ env.BUILD_STATUS_STRING }}
+          COLOR: ${{ env.BUILD_STATUS_COLOR }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  
