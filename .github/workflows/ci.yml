@@ -56,12 +56,15 @@ jobs:
         id: setup-python
 
       - name: Determine Plugin Configuration
+        id: is_all_plugins
         shell: bash
         run: |
           if [ "${{ matrix.GLTF }}" == "ON" ] && [ "${{ matrix.PLY }}" == "ON" ] && [ "${{ matrix.OBJ }}" == "ON" ] && [ "${{ matrix.STL }}" == "ON" ] && [ "${{ matrix.FBX }}" == "ON" ]; then
             echo "ALL_PLUGINS_ON=true" >> $GITHUB_ENV
+            echo "run_badge=true" >> $GITHUB_OUTPUT
           else
             echo "ALL_PLUGINS_ON=false" >> $GITHUB_ENV
+            echo "run_badge=false" >> $GITHUB_OUTPUT
           fi
 
       - name: Install Ninja (Cross-platform)
@@ -274,10 +277,13 @@ jobs:
           name: ${{ matrix.os }}-${{ matrix.usd_version }}
           path: build/${{ matrix.os }}-${{ matrix.usd_version }}.csv
 
+    outputs:
+      build_result: ${{ steps.is_all_plugins.outputs.run_badge }}
+
   update_badge:
     needs: [build, prepare-matrix]
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && always() && ${{ matrix.GLTF }} == 'ON' && ${{ matrix.PLY == 'ON' }} && ${{ matrix.OBJ }} == 'ON' && ${{ matrix.STL }} == 'ON' && ${{ matrix.FBX }} == 'ON'
+    if: github.event_name == 'push' && always() && needs.build.outputs.run_badge == 'true'
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
