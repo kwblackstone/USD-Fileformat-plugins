@@ -31,11 +31,10 @@ jobs:
 
         for row in $(echo "${JSON}" | jq -c '.include[]'); do
           for plugin in "${PLUGINS[@]}"; do
-            NEW_ROW=$(echo "$row" | jq '. + {"GLTF":"OFF", "PLY":"OFF", "OBJ":"OFF", "STL":"OFF", "FBX":"OFF"}')
-            NEW_ROW=$(echo "$NEW_ROW" | jq '."'$plugin'" = "ON"')
+            NEW_ROW=$(echo "$row" | jq '. + {"config":"'$plugin'"}')
             MODIFIED_JSON=$(echo "$MODIFIED_JSON" | jq '.include += ['"$NEW_ROW"']')
           done
-          ALL_ON_ROW=$(echo "$row" | jq '. + {"GLTF":"ON", "PLY":"ON", "OBJ":"ON", "STL":"ON", "FBX":"ON"}')
+          ALL_ON_ROW=$(echo "$row" | jq '. + {"config":"ALL"}')
           MODIFIED_JSON=$(echo "$MODIFIED_JSON" | jq '.include += ['"$ALL_ON_ROW"']')
         done
         echo "matrix=$(echo "$MODIFIED_JSON" | jq -c .)" >> $GITHUB_OUTPUT
@@ -46,7 +45,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix: ${{fromJson(needs.prepare-matrix.outputs.matrix)}}
-    name: build (${{ matrix.os }}-${{ matrix.usd_version }}-${{ steps.plugin_config.outputs.config }})
+    name: build (${{ matrix.os }}-${{ matrix.usd_version }}-${{ matrix.config }})
     steps:
       - uses: actions/checkout@v4
       - uses: ilammy/msvc-dev-cmd@v1
@@ -55,29 +54,6 @@ jobs:
         with:
           python-version: '3.10.11'
         id: setup-python
-
-      - name: Determine Plugin Configuration
-        id: plugin_config
-        shell: bash
-        run: |
-          if [ "${{ matrix.GLTF }}" == "ON" ] && [ "${{ matrix.PLY }}" == "ON" ] && [ "${{ matrix.OBJ }}" == "ON" ] && [ "${{ matrix.STL }}" == "ON" ] && [ "${{ matrix.FBX }}" == "ON" ]; then
-            echo "PLUGIN_CONFIG=ALL" >> $GITHUB_ENV
-          else
-            if [ "${{ matrix.GLTF }}" == "ON" ]; then
-              echo "PLUGIN_CONFIG=GLTF" >> $GITHUB_ENV
-            elif [ "${{ matrix.PLY }}" == "ON" ]; then
-              echo "PLUGIN_CONFIG=PLY" >> $GITHUB_ENV
-            elif [ "${{ matrix.OBJ }}" == "ON" ]; then
-              echo "PLUGIN_CONFIG=OBJ" >> $GITHUB_ENV
-            elif [ "${{ matrix.STL }}" == "ON" ]; then
-              echo "PLUGIN_CONFIG=STL" >> $GITHUB_ENV
-            elif [ "${{ matrix.FBX }}" == "ON" ]; then
-              echo "PLUGIN_CONFIG=FBX" >> $GITHUB_ENV
-            else
-              echo "PLUGIN_CONFIG=Undefined" >> $GITHUB_ENV
-            fi
-          fi
-          echo "config=$PLUGIN_CONFIG" >> $GITHUB_OUTPUT
 
       - name: Install Ninja (Cross-platform)
         run: |
@@ -147,7 +123,7 @@ jobs:
 
       - name: Get latest successful run ID of the fbx sdk workflow
         shell: bash
-        if: env.PLUGIN_CONFIG == 'FBX' || env.PLUGIN_CONFIG == 'ALL'
+        if: ${{ matrix.config }} == 'FBX' || ${{ matrix.config }} == 'ALL'
         id: get-run-id
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -157,7 +133,7 @@ jobs:
           echo "Run ID: $RUN_ID"
 
       - name: Download FBX SDK Artifact
-        if: env.PLUGIN_CONFIG == 'FBX' || env.PLUGIN_CONFIG == 'ALL'
+        if: ${{ matrix.config }} == 'FBX' ||${{ matrix.config }} == 'ALL'
         uses: actions/download-artifact@v4
         with:
           name: ${{ runner.os }}-FBX-SDK
@@ -167,7 +143,7 @@ jobs:
           run-id: ${{ env.RUN_ID }}
 
       - name: Set up FBX
-        if: env.PLUGIN_CONFIG == 'FBX' || env.PLUGIN_CONFIG == 'ALL'
+        if: ${{ matrix.config }} == 'FBX' || ${{ matrix.config }} == 'ALL'
         shell: bash
         run: |
           FBX_FOLDER=$(echo "${{ github.workspace }}/FBXSDK" | sed 's|\\|/|g')
@@ -181,7 +157,7 @@ jobs:
           fi
 
       - name: Install FBX SDK Windows
-        if: runner.os == 'Windows' && (env.PLUGIN_CONFIG == 'FBX' || env.PLUGIN_CONFIG == 'ALL')
+        if: runner.os == 'Windows' && (${{ matrix.config }} == 'FBX' || ${{ matrix.config }} == 'ALL')
         shell: bash
         run: |
           mkdir -p ${{ env.FBX_FOLDER }}
@@ -191,7 +167,7 @@ jobs:
           echo "FBX_INSTALL_DIR=$FBX_INSTALL_DIR" >> $GITHUB_ENV
 
       - name: Install FBX SDK Unix
-        if: runner.os != 'Windows' && (env.PLUGIN_CONFIG == 'FBX' || env.PLUGIN_CONFIG == 'ALL')
+        if: runner.os != 'Windows' && (${{ matrix.config }} == 'FBX' || ${{ matrix.config }} == 'ALL')
         run: |
           mkdir -p ${{ env.FBX_FOLDER }} 
           if [ "${{ runner.os }}" == "macOS" ]; then
@@ -217,11 +193,11 @@ jobs:
             "-DCMAKE_INSTALL_PREFIX=bin"
             "-DCMAKE_BUILD_TYPE=Release"
             "-Dpxr_ROOT=${{ github.workspace }}/usd_build"
-            "-DUSD_FILEFORMATS_ENABLE_GLTF=${{ matrix.GLTF }}"
-            "-DUSD_FILEFORMATS_ENABLE_PLY=${{ matrix.PLY }}"
-            "-DUSD_FILEFORMATS_ENABLE_OBJ=${{ matrix.OBJ }}"
-            "-DUSD_FILEFORMATS_ENABLE_STL=${{ matrix.STL }}"
-            "-DUSD_FILEFORMATS_ENABLE_FBX=${{ matrix.FBX }}"
+            "-DUSD_FILEFORMATS_ENABLE_GLTF=$([[ "${{ matrix.config }}" == "ALL" || "${{ matrix.config }}" == "GLTF" ]] && echo "ON" || echo "OFF")"
+            "-DUSD_FILEFORMATS_ENABLE_PLY=$([[ "${{ matrix.config }}" == "ALL" || "${{ matrix.config }}" == "PLY" ]] && echo "ON" || echo "OFF")"
+            "-DUSD_FILEFORMATS_ENABLE_OBJ=$([[ "${{ matrix.config }}" == "ALL" || "${{ matrix.config }}" == "OBJ" ]] && echo "ON" || echo "OFF")"
+            "-DUSD_FILEFORMATS_ENABLE_STL=$([[ "${{ matrix.config }}" == "ALL" || "${{ matrix.config }}" == "STL" ]] && echo "ON" || echo "OFF")"
+            "-DUSD_FILEFORMATS_ENABLE_FBX=$([[ "${{ matrix.config }}" == "ALL" || "${{ matrix.config }}" == "FBX" ]] && echo "ON" || echo "OFF")"
             "-DFBXSDK_ROOT=${{ env.FBX_INSTALL_DIR }}"
             "-DUSD_FILEFORMATS_BUILD_TESTS=ON"
             "-DOpenImageIO_INCLUDE_DIR=${{ github.workspace }}/usd_build/include"
@@ -272,10 +248,10 @@ jobs:
           ctest -VV -C Release
           result=$?
           echo "Test exit status: $result"
-          suffix="${{ matrix.os }}-${{ matrix.usd_version }}-${{ env.PLUGIN_CONFIG }}"
+          suffix="${{ matrix.os }}-${{ matrix.usd_version }}-${{ matrix.config }}"
           if [[ "$result" -eq 0 ]]; then
-            echo "BUILD_STATUS_STRING=Passed" >> $GITHUB_ENV
-            echo "BUILD_STATUS_COLOR=green" >> $GITHUB_ENV
+            echo "BUILD_STATUS_STRING=Pass" >> $GITHUB_ENV
+            echo "BUILD_STATUS_COLOR=orange" >> $GITHUB_ENV
           else
             echo "BUILD_STATUS_STRING=Failed" >> $GITHUB_ENV
             echo "BUILD_STATUS_COLOR=red" >> $GITHUB_ENV
@@ -292,7 +268,7 @@ jobs:
         with:
           auth: ${{ secrets.GIST_SECRET }}
           gistID: 28b0c56a37b0d5fa6edc009068abc7ba
-          filename: ${{ matrix.os }}-${{ matrix.usd_version }}-${{ env.PLUGIN_CONFIG }}.json # Use test.svg if you want to use the SVG mode.
-          label: ${{ matrix.os }}-${{ matrix.usd_version }}-${{ env.PLUGIN_CONFIG }}
+          filename: ${{ matrix.os }}-${{ matrix.usd_version }}-${{ matrix.config }}.json # Use test.svg if you want to use the SVG mode.
+          label: ${{ matrix.os }}-${{ matrix.usd_version }}-${{ matrix.config }}
           message: ${{ env.BUILD_STATUS_STRING }}
           color: ${{ env.BUILD_STATUS_COLOR }}
