@@ -251,7 +251,7 @@ jobs:
           suffix="${{ matrix.os }}-${{ matrix.usd_version }}-${{ matrix.config }}"
           if [[ "$result" -eq 0 ]]; then
             echo "BUILD_STATUS_STRING=Passed" >> $GITHUB_ENV
-            echo "BUILD_STATUS_COLOR=green" >> $GITHUB_ENV
+            echo "BUILD_STATUS_COLOR=#206025" >> $GITHUB_ENV
           else
             echo "BUILD_STATUS_STRING=Failed" >> $GITHUB_ENV
             echo "BUILD_STATUS_COLOR=red" >> $GITHUB_ENV
@@ -272,5 +272,5 @@ jobs:
           filename: ${{ matrix.os }}-${{ matrix.usd_version }}-${{ matrix.config }}.json
           label: ${{ matrix.os }}-${{ matrix.usd_version }}-${{ matrix.config }}
           message: ${{ env.BUILD_STATUS_STRING }}
-          color: ${{ env.BUILD_STATUS_COLOR }}
+          color: "${{ env.BUILD_STATUS_COLOR }}"
           forceUpdate: true
